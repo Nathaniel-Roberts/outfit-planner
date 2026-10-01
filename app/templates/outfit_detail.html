@@ -2,11 +2,14 @@
 {% block title %}{{ outfit.display_name }} · Outfit Planner{% endblock %}
 {% block heading %}{{ outfit.display_name }}{% endblock %}
 {% block content %}
+{% if outfit.deleted %}<div class="flash warn">This outfit is in the bin. <form method="post" action="/outfits/{{ outfit.id }}/restore" style="display:inline"><button class="btn small" type="submit">Restore</button></form></div>{% endif %}
 {% if outfit.archived %}<div class="flash">This outfit is archived.</div>{% endif %}
+{% if outfit.in_wash_on(today) %}<div class="flash">In the wash until {{ outfit.unavailable_until|au_day }}. <form method="post" action="/outfits/{{ outfit.id }}/wash" style="display:inline"><input type="hidden" name="days" value="0"><button class="btn small" type="submit">It's clean</button></form></div>{% endif %}
 {% if outfit.photos %}
-<div class="photo-strip">
-  {% for p in outfit.photos %}<img src="{{ p.web_url }}" alt="" loading="{{ 'eager' if loop.first else 'lazy' }}">{% endfor %}
+<div class="photo-strip" data-lightbox>
+  {% for p in outfit.photos %}<img src="{{ p.web_url }}" data-full="{{ p.url }}" alt="{{ outfit.display_name }}, photo {{ loop.index }}" loading="{{ 'eager' if loop.first else 'lazy' }}">{% endfor %}
 </div>
+{% if outfit.photos|length > 1 %}<p class="small muted" style="text-align:center; margin-top:-6px">{{ outfit.photos|length }} photos. Swipe, or tap to view full screen.</p>{% endif %}
 {% else %}
 <div class="card"><p class="muted">No photo yet.</p>
   <form method="post" action="/outfits/{{ outfit.id }}/photos" enctype="multipart/form-data">
@@ -24,6 +27,9 @@
     {% include "partials/favourite_button.html" %}
     <a class="btn" href="/outfits/{{ outfit.id }}/edit">Edit</a>
   </div>
+  {% if not outfit.in_wash_on(today) %}
+  <form method="post" action="/outfits/{{ outfit.id }}/wash" style="margin-top:10px"><input type="hidden" name="days" value="3"><button class="btn block ghost" type="submit">In the wash (hide for 3 days)</button></form>
+  {% endif %}
   <details style="margin-top:10px">
     <summary class="small muted" style="cursor:pointer">Wore it on another day</summary>
     <form method="post" action="/wear/{{ outfit.id }}" style="display:flex; gap:8px; align-items:flex-end; margin-top:6px">
@@ -53,7 +59,7 @@
 
 <div class="card" style="display:flex; gap:8px; flex-wrap:wrap">
   <form method="post" action="/outfits/{{ outfit.id }}/archive"><button type="submit">{{ 'Unarchive' if outfit.archived else 'Archive' }}</button></form>
-  <form method="post" action="/outfits/{{ outfit.id }}/delete" onsubmit="return confirm('Delete this outfit and its photos? This cannot be undone.')"><button class="danger" type="submit">Delete</button></form>
+  <form method="post" action="/outfits/{{ outfit.id }}/delete" onsubmit="return confirm('Move this outfit to the bin? You can restore it from Settings for 30 days.')"><button class="danger" type="submit">Delete</button></form>
 </div>
 {% endblock %}
 {% block scripts %}<script src="/static/app.js" defer></script>{% endblock %}

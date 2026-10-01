@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -45,11 +45,16 @@ def palette_hex(key: str) -> str:
     return swatch.hex if swatch else "#cccccc"
 
 
+def days(n: int) -> timedelta:
+    return timedelta(days=int(n))
+
+
 def build_templates(tz: str) -> Jinja2Templates:
     templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
     templates.env.filters["au_date"] = au_date
     templates.env.filters["au_day"] = au_day
     templates.env.filters["degrees"] = degrees
+    templates.env.filters["days"] = days
     templates.env.globals["tz"] = tz
     templates.env.globals["palette_hex"] = palette_hex
     return templates

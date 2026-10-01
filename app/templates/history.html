@@ -2,6 +2,12 @@
 {% block title %}History · Outfit Planner{% endblock %}
 {% block heading %}History{% endblock %}
 {% block content %}
+<div class="stats">
+  <div class="stat"><div class="n">{{ stats.worn_this_month }}<span class="of">/{{ stats.active }}</span></div><div class="l">outfits worn this month</div></div>
+  <div class="stat"><div class="n">{{ stats.wears_this_month }}</div><div class="l">days logged this month</div></div>
+  <a class="stat {% if stats.stale %}link{% endif %}" {% if stats.stale %}href="/outfits?stale=60&sort=last_worn"{% endif %}><div class="n">{{ stats.stale }}</div><div class="l">not worn in 60 days</div></a>
+  <div class="stat"><div class="n swatches" style="margin:4px 0 2px">{% for c, n in stats.top_colours %}<span style="background:{{ palette[c].hex if c in palette else '#ccc' }}" title="{{ palette[c].label if c in palette else c }} ({{ n }})"></span>{% endfor %}{% if not stats.top_colours %}<span class="muted small" style="width:auto; height:auto; box-shadow:none">none yet</span>{% endif %}</div><div class="l">most used colours</div></div>
+</div>
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px">
     <a class="btn small" href="/history?month={{ prev_month }}" aria-label="Previous month">‹</a>

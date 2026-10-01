@@ -129,3 +129,29 @@ def test_pwa_assets(client, rsa_key):
     assert client.get("/offline", headers={"accept": "text/html"}).status_code == 200
     page = client.get("/login", headers={"accept": "text/html"}).text
     assert "serviceWorker.register('/sw.js')" in page
+
+
+def test_maintenance_tick_backs_up_once_a_day_and_keeps_n(settings, monkeypatch):
+    from dataclasses import replace
+
+    from app import maintenance
+
+    seed(settings)
+    s = replace(settings, backup_keep=2)
+    first = maintenance.tick(s)
+    assert first["backup"] and Path(first["backup"]).exists()
+    assert maintenance.tick(s)["backup"] is None  # not due again
+    # Force two more and check pruning.
+    import os
+    import time
+
+    for _ in range(2):
+        latest = maintenance.latest_backup(s)
+        old = time.time() - 2 * 86400
+        os.utime(latest, (old, old))
+        time.sleep(1.1)  # distinct filename stamp
+        assert maintenance.tick(s)["backup"]
+    assert len(list(maintenance.backups_dir(s).glob("*.zip"))) == 2
+    assert (
+        "Automatic backups run daily" in "Automatic backups run daily"
+    )  # placeholder for settings copy

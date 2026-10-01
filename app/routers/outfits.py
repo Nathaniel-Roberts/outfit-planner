@@ -4,16 +4,16 @@ from __future__ import annotations
 
 import sqlite3
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 
 from app import colours as palette
-from app import images, outfits, tags
+from app import images, outfits, tags, wear
 from app.auth import require_user
 from app.forms import new_tag_names, outfit_input_from_form, read_upload
 from app.outfits import Outfit
 from app.scope import viewing_user
-from app.templating import render
+from app.templating import render, today_in
 from app.users import User
 
 router = APIRouter()
@@ -25,12 +25,16 @@ def conn_of(request: Request) -> sqlite3.Connection:
     return get_conn(request)
 
 
-def load_owned(request: Request, outfit_id: int, user: User) -> tuple[Outfit, User]:
+def load_owned(
+    request: Request, outfit_id: int, user: User, allow_deleted: bool = False
+) -> tuple[Outfit, User]:
     conn = conn_of(request)
     viewer = viewing_user(request, conn, user)
     outfit = outfits.get_outfit(conn, outfit_id)
     if outfit is None or (outfit.user_id != viewer.id and not user.is_admin):
         raise HTTPException(status_code=404, detail="Outfit not found")
+    if outfit.deleted and not allow_deleted:
+        raise HTTPException(status_code=404, detail="Outfit is in the bin")
     return outfit, viewer
 
 
@@ -51,6 +55,8 @@ def filter_from_query(request: Request) -> outfits.OutfitFilter:
         temperature = float(temp) if temp not in (None, "") else None
     except ValueError:
         temperature = None
+    stale = qp.get("stale")
+    sort = qp.get("sort") or "newest"
     return outfits.OutfitFilter(
         tag_ids=[int(t) for t in qp.getlist("tag") if t.isdigit()],
         colours=qp.getlist("colour"),
@@ -58,6 +64,8 @@ def filter_from_query(request: Request) -> outfits.OutfitFilter:
         favourite=qp.get("favourite") == "1",
         archived=qp.get("archived") == "1",
         query=qp.get("q") or None,
+        not_worn_days=int(stale) if stale and stale.isdigit() else None,
+        sort=sort if sort in outfits.SORTS else "newest",
     )
 
 
@@ -69,11 +77,15 @@ def library(request: Request, user: User = Depends(require_user)):
     items = outfits.filter_outfits(
         outfits.list_outfits(conn, viewer.id, only_archived=f.archived), f
     )
+    counts = wear.wear_counts(conn, viewer.id) if f.sort in ("most_worn", "least_worn") else None
+    items = outfits.sort_outfits(items, f.sort, counts)
     return render(
         request.app.state.templates,
         request,
         "outfits_list.html",
         outfits=items,
+        today=today_in(request.app.state.settings.tz),
+        sorts=outfits.SORTS,
         filter=f,
         all_tags=tags.list_tags(conn, viewer.id),
         palette_list=palette.PALETTE,
@@ -144,7 +156,7 @@ async def create_outfit(request: Request, user: User = Depends(require_user)):
 
 @router.get("/outfits/{outfit_id}", response_class=HTMLResponse)
 def outfit_detail(request: Request, outfit_id: int, user: User = Depends(require_user)):
-    outfit, viewer = load_owned(request, outfit_id, user)
+    outfit, viewer = load_owned(request, outfit_id, user, allow_deleted=True)
     conn = conn_of(request)
     history = conn.execute(
         "SELECT worn_on FROM wear_log WHERE outfit_id = ? ORDER BY worn_on DESC LIMIT 10",
@@ -157,6 +169,7 @@ def outfit_detail(request: Request, outfit_id: int, user: User = Depends(require
         outfit=outfit,
         palette=palette.BY_KEY,
         history=[r["worn_on"] for r in history],
+        today=today_in(request.app.state.settings.tz),
         nav="library",
     )
 
@@ -262,9 +275,48 @@ def archive(request: Request, outfit_id: int, user: User = Depends(require_user)
 
 @router.post("/outfits/{outfit_id}/delete")
 def delete_outfit(request: Request, outfit_id: int, user: User = Depends(require_user)):
+    """Soft delete: into the bin for 30 days."""
     outfit, _ = load_owned(request, outfit_id, user)
+    outfits.trash_outfit(conn_of(request), outfit.id)
+    request.state.flash = {"kind": "", "message": "Moved to the bin."}
+    return RedirectResponse("/outfits?binned=1", status_code=303)
+
+
+@router.post("/outfits/{outfit_id}/restore")
+def restore_outfit(request: Request, outfit_id: int, user: User = Depends(require_user)):
+    outfit, _ = load_owned(request, outfit_id, user, allow_deleted=True)
+    outfits.restore_outfit(conn_of(request), outfit.id)
+    return RedirectResponse(f"/outfits/{outfit.id}", status_code=303)
+
+
+@router.post("/outfits/{outfit_id}/delete-forever")
+def delete_forever(request: Request, outfit_id: int, user: User = Depends(require_user)):
+    outfit, _ = load_owned(request, outfit_id, user, allow_deleted=True)
+    if not outfit.deleted:
+        raise HTTPException(status_code=400, detail="Move it to the bin first")
     outfits.delete_outfit(conn_of(request), request.app.state.settings.photos_dir, outfit)
-    return RedirectResponse("/outfits", status_code=303)
+    return RedirectResponse("/settings#bin", status_code=303)
+
+
+@router.post("/outfits/{outfit_id}/wash")
+def wash(
+    request: Request, outfit_id: int, user: User = Depends(require_user), days: str = Form("3")
+):
+    """Mark as in the wash: hidden from Today for a few days. days=0 clears it."""
+    from datetime import timedelta
+
+    outfit, _ = load_owned(request, outfit_id, user)
+    n = int(days) if days.isdigit() else 3
+    today = today_in(request.app.state.settings.tz)
+    until = today + timedelta(days=max(0, n) - 1) if n > 0 else None
+    outfits.set_unavailable(conn_of(request), outfit.id, until)
+    if request.headers.get("hx-request") == "true":
+        return RedirectResponse(
+            "/",
+            status_code=303,
+            headers={"HX-Redirect": request.headers.get("hx-current-url") or "/"},
+        )
+    return _back(request, f"/outfits/{outfit.id}")
 
 
 # --- Photo files ---------------------------------------------------------------------

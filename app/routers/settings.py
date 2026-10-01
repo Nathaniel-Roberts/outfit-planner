@@ -5,14 +5,17 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 
-from app import colour_rules, tags, users
+from app import colour_rules, maintenance, outfits, tags, users
 from app import colours as palette
 from app.auth import require_user
+from app.routers import today as today_router
 from app.scope import VIEW_COOKIE, viewing_user
 from app.templating import render
 from app.users import User
 
 router = APIRouter()
+
+WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
 
 def conn_of(request: Request):
@@ -34,6 +37,13 @@ def settings_page(request: Request, user: User = Depends(require_user)):
         all_users=users.list_users(conn) if user.is_admin else [],
         rules=colour_rules.list_rules(conn, viewer.id),
         palette_list=palette.PALETTE,
+        routine=today_router.routine(conn, viewer.id),
+        weekdays=WEEKDAYS,
+        binned=outfits.list_deleted(conn, viewer.id),
+        trash_days=outfits.TRASH_DAYS,
+        latest_backup=maintenance.latest_backup(request.app.state.settings)
+        if user.is_admin
+        else None,
         settings=request.app.state.settings,
         nav="settings",
     )
@@ -141,3 +151,20 @@ def colour_hint(request: Request, user: User = Depends(require_user), colours: s
     if avoids:
         parts.append("You usually avoid: " + ", ".join(avoids))
     return ". ".join(parts) + "."
+
+
+# --- Weekly routine ----------------------------------------------------------------------
+
+
+@router.post("/settings/routine")
+async def save_routine(request: Request, user: User = Depends(require_user)):
+    conn = conn_of(request)
+    viewer = viewing_user(request, conn, user)
+    form = await request.form()
+    by_weekday: dict[int, list[int]] = {}
+    for weekday in range(7):
+        by_weekday[weekday] = [
+            int(v) for v in form.getlist(f"routine_{weekday}") if str(v).isdigit()
+        ]
+    today_router.set_routine(conn, viewer.id, by_weekday)
+    return RedirectResponse("/settings?saved=routine#routine", status_code=303)

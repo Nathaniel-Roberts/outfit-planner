@@ -57,6 +57,8 @@ class Settings:
     mcp_user_email: str | None
     mcp_bearer_token: str | None
     public_base_url: str | None
+    auto_backup: bool = True
+    backup_keep: int = 14
 
     @property
     def db_path(self) -> Path:
@@ -125,4 +127,6 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         mcp_user_email=(env.get("MCP_USER_EMAIL") or "").strip().lower() or None,
         mcp_bearer_token=(env.get("MCP_BEARER_TOKEN") or "").strip() or None,
         public_base_url=public_base_url,
+        auto_backup=_as_bool(env.get("AUTO_BACKUP"), True),
+        backup_keep=max(0, int(env.get("BACKUP_KEEP") or 14)),
     )

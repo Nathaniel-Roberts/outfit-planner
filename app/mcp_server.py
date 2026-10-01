@@ -249,6 +249,8 @@ def build_mcp_server(
         """Full record for one outfit, including photo URLs and resource URIs."""
         with session(ctx) as (conn, user):
             outfit = owned(conn, user, outfit_id)
+            if outfit.deleted:
+                raise ToolError(f"Outfit {outfit_id} is in the bin")
             data = _outfit_dict(outfit, base_url)
             data["wear_history"] = [
                 r["worn_on"]
@@ -296,7 +298,7 @@ def build_mcp_server(
                 if n.lower() not in {t.name.lower() for t in selected}
             ]
             ranked = rank_outfits(
-                outfits.list_outfits(conn, user.id),
+                [o for o in outfits.list_outfits(conn, user.id) if not o.in_wash_on(target)],
                 {t.id for t in selected},
                 forecast,
                 target,
@@ -420,6 +422,21 @@ def build_mcp_server(
                 "outfit_id": outfit.id,
                 "outfit": outfit.display_name,
                 "worn_on": target.isoformat(),
+            }
+
+    @server.tool()
+    async def mark_in_wash(ctx: Context, outfit_id: int, days: int = 3) -> dict[str, Any]:
+        """Hide an outfit from suggestions for a few days (it's in the wash). days=0 clears it."""
+        from datetime import timedelta
+
+        with session(ctx) as (conn, user):
+            outfit = owned(conn, user, outfit_id)
+            today = today_in(settings.tz)
+            until = today + timedelta(days=max(0, days) - 1) if days > 0 else None
+            outfits.set_unavailable(conn, outfit.id, until)
+            return {
+                "outfit_id": outfit.id,
+                "unavailable_until": until.isoformat() if until else None,
             }
 
     @server.tool()

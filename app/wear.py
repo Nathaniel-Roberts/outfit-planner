@@ -15,6 +15,13 @@ class WearEntry:
     outfit_id: int
     user_id: int
     worn_on: date
+    feedback: str | None = None
+
+
+def _entry(r: sqlite3.Row) -> WearEntry:
+    return WearEntry(
+        r["id"], r["outfit_id"], r["user_id"], date.fromisoformat(r["worn_on"]), r["feedback"]
+    )
 
 
 def _refresh_last_worn(conn: sqlite3.Connection, outfit_id: int) -> None:
@@ -89,3 +96,55 @@ def wear_counts(conn: sqlite3.Connection, user_id: int) -> dict[int, int]:
         (user_id,),
     ).fetchall()
     return {r["outfit_id"]: r["n"] for r in rows}
+
+
+FEEDBACK_NUDGE = 1.0  # degrees per 'too hot' / 'too cold'
+
+
+def awaiting_feedback(conn: sqlite3.Connection, user_id: int, before: date) -> list[WearEntry]:
+    """Recent wears (last 3 days, strictly before `before`) with no feedback yet."""
+    rows = conn.execute(
+        """
+        SELECT w.* FROM wear_log w
+        JOIN outfits o ON o.id = w.outfit_id
+        WHERE w.user_id = ? AND w.feedback IS NULL AND o.deleted_at IS NULL
+          AND w.worn_on < ? AND w.worn_on >= date(?, '-3 days')
+        ORDER BY w.worn_on DESC, w.id DESC
+        """,
+        (user_id, before.isoformat(), before.isoformat()),
+    ).fetchall()
+    return [_entry(r) for r in rows]
+
+
+def set_feedback(
+    conn: sqlite3.Connection, entry_id: int, user_id: int, feedback: str
+) -> WearEntry | None:
+    """Record how the outfit felt and nudge its temperature range accordingly.
+
+    'hot' lowers the top of the range by a degree, 'cold' raises the bottom. Only
+    outfits with a range are adjusted, and the range never collapses below 4 degrees.
+    """
+    if feedback not in ("hot", "cold", "ok", "skip"):
+        raise ValueError("feedback must be hot, cold, ok or skip")
+    row = conn.execute(
+        "SELECT * FROM wear_log WHERE id = ? AND user_id = ?", (entry_id, user_id)
+    ).fetchone()
+    if row is None:
+        return None
+    with transaction(conn):
+        conn.execute("UPDATE wear_log SET feedback = ? WHERE id = ?", (feedback, entry_id))
+        o = conn.execute(
+            "SELECT temp_min, temp_max FROM outfits WHERE id = ?", (row["outfit_id"],)
+        ).fetchone()
+        if o and o["temp_min"] is not None and o["temp_max"] is not None:
+            lo, hi = float(o["temp_min"]), float(o["temp_max"])
+            if feedback == "hot" and hi - FEEDBACK_NUDGE - lo >= 4:
+                hi -= FEEDBACK_NUDGE
+            elif feedback == "cold" and hi - (lo + FEEDBACK_NUDGE) >= 4:
+                lo += FEEDBACK_NUDGE
+            conn.execute(
+                "UPDATE outfits SET temp_min = ?, temp_max = ?, updated_at = datetime('now') "
+                "WHERE id = ?",
+                (lo, hi, row["outfit_id"]),
+            )
+    return _entry(conn.execute("SELECT * FROM wear_log WHERE id = ?", (entry_id,)).fetchone())

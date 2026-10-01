@@ -61,6 +61,8 @@ class Outfit:
     last_worn_on: date | None
     created_at: str
     updated_at: str
+    unavailable_until: date | None = None
+    deleted_at: str | None = None
     photos: list[Photo] = field(default_factory=list)
     tags: list[Tag] = field(default_factory=list)
     colours: list[str] = field(default_factory=list)
@@ -75,6 +77,13 @@ class Outfit:
     @property
     def cover(self) -> Photo | None:
         return self.photos[0] if self.photos else None
+
+    def in_wash_on(self, day: date) -> bool:
+        return self.unavailable_until is not None and self.unavailable_until >= day
+
+    @property
+    def deleted(self) -> bool:
+        return self.deleted_at is not None
 
     @property
     def tag_names(self) -> list[str]:
@@ -124,6 +133,9 @@ class Outfit:
             "garments": [g.name for g in self.garments],
             "favourite": self.favourite,
             "archived": self.archived,
+            "unavailable_until": (
+                self.unavailable_until.isoformat() if self.unavailable_until else None
+            ),
             "last_worn_on": self.last_worn_on.isoformat() if self.last_worn_on else None,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
@@ -195,6 +207,8 @@ def _row_to_outfit(row: sqlite3.Row) -> Outfit:
         last_worn_on=_parse_date(row["last_worn_on"]),
         created_at=row["created_at"],
         updated_at=row["updated_at"],
+        unavailable_until=_parse_date(row["unavailable_until"]),
+        deleted_at=row["deleted_at"],
     )
 
 
@@ -254,13 +268,22 @@ def list_outfits(
     include_archived: bool = False,
     only_archived: bool = False,
 ) -> list[Outfit]:
-    sql = "SELECT * FROM outfits WHERE user_id = ?"
+    sql = "SELECT * FROM outfits WHERE user_id = ? AND deleted_at IS NULL"
     if only_archived:
         sql += " AND archived = 1"
     elif not include_archived:
         sql += " AND archived = 0"
     sql += " ORDER BY favourite DESC, created_at DESC, id DESC"
     rows = conn.execute(sql, (user_id,)).fetchall()
+    return _hydrate(conn, [_row_to_outfit(r) for r in rows])
+
+
+def list_deleted(conn: sqlite3.Connection, user_id: int) -> list[Outfit]:
+    rows = conn.execute(
+        "SELECT * FROM outfits WHERE user_id = ? AND deleted_at IS NOT NULL "
+        "ORDER BY deleted_at DESC",
+        (user_id,),
+    ).fetchall()
     return _hydrate(conn, [_row_to_outfit(r) for r in rows])
 
 
@@ -443,7 +466,49 @@ def make_cover(conn: sqlite3.Connection, outfit: Outfit, photo_id: int) -> None:
         conn.execute("UPDATE outfit_photos SET sort_order = ? WHERE id = ?", (order, photo.id))
 
 
+TRASH_DAYS = 30
+
+
+def trash_outfit(conn: sqlite3.Connection, outfit_id: int) -> None:
+    """Move to the bin. Restorable for TRASH_DAYS, then purged."""
+    conn.execute(
+        "UPDATE outfits SET deleted_at = datetime('now'), updated_at = datetime('now') "
+        "WHERE id = ?",
+        (outfit_id,),
+    )
+
+
+def restore_outfit(conn: sqlite3.Connection, outfit_id: int) -> None:
+    conn.execute(
+        "UPDATE outfits SET deleted_at = NULL, updated_at = datetime('now') WHERE id = ?",
+        (outfit_id,),
+    )
+
+
+def purge_trash(
+    conn: sqlite3.Connection, photos_root: Path, older_than_days: int = TRASH_DAYS
+) -> int:
+    """Permanently delete outfits that have sat in the bin long enough. Returns the count."""
+    rows = conn.execute(
+        "SELECT id FROM outfits WHERE deleted_at IS NOT NULL AND deleted_at < datetime('now', ?)",
+        (f"-{int(older_than_days)} days",),
+    ).fetchall()
+    for row in rows:
+        outfit = get_outfit(conn, row["id"])
+        if outfit is not None:
+            delete_outfit(conn, photos_root, outfit)
+    return len(rows)
+
+
+def set_unavailable(conn: sqlite3.Connection, outfit_id: int, until: date | None) -> None:
+    conn.execute(
+        "UPDATE outfits SET unavailable_until = ?, updated_at = datetime('now') WHERE id = ?",
+        (until.isoformat() if until else None, outfit_id),
+    )
+
+
 def delete_outfit(conn: sqlite3.Connection, photos_root: Path, outfit: Outfit) -> None:
+    """Permanent delete: the row, its photos, and the folder."""
     conn.execute("DELETE FROM outfits WHERE id = ?", (outfit.id,))
     dest = photos_dir_for(photos_root, outfit.id)
     for photo in outfit.photos:
@@ -463,6 +528,8 @@ class OutfitFilter:
     archived: bool = False
     query: str | None = None
     worn_since: date | None = None
+    not_worn_days: int | None = None  # only outfits not worn in this many days (or ever)
+    sort: str = "newest"
 
     @property
     def active(self) -> bool:
@@ -473,7 +540,32 @@ class OutfitFilter:
             or self.favourite
             or self.query
             or self.worn_since
+            or self.not_worn_days is not None
         )
+
+
+SORTS = {
+    "newest": "Newest first",
+    "name": "Name",
+    "last_worn": "Worn longest ago",
+    "most_worn": "Most worn",
+    "least_worn": "Least worn",
+}
+
+
+def sort_outfits(
+    items: list[Outfit], sort: str, counts: dict[int, int] | None = None
+) -> list[Outfit]:
+    counts = counts or {}
+    if sort == "name":
+        return sorted(items, key=lambda o: o.display_name.lower())
+    if sort == "last_worn":
+        return sorted(items, key=lambda o: (o.last_worn_on or date.min, o.id))
+    if sort == "most_worn":
+        return sorted(items, key=lambda o: (-counts.get(o.id, 0), o.last_worn_on or date.min))
+    if sort == "least_worn":
+        return sorted(items, key=lambda o: (counts.get(o.id, 0), o.last_worn_on or date.min))
+    return items  # list_outfits already orders newest (favourites first)
 
 
 def filter_outfits(all_outfits: list[Outfit], f: OutfitFilter) -> list[Outfit]:
@@ -496,6 +588,9 @@ def filter_outfits(all_outfits: list[Outfit], f: OutfitFilter) -> list[Outfit]:
             continue
         if f.worn_since and (o.last_worn_on is None or o.last_worn_on < f.worn_since):
             continue
+        if f.not_worn_days is not None and o.last_worn_on is not None:
+            if (date.today() - o.last_worn_on).days < f.not_worn_days:
+                continue
         if q:
             haystack = " ".join(
                 [

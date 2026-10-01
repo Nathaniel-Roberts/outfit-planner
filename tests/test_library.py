@@ -168,3 +168,78 @@ def test_history_month_grid_pads_mondays():
     assert weeks[0][:3] == [None, None, None]
     assert weeks[0][3] == date(2026, 10, 1)
     assert weeks[-1][-1] in (None, date(2026, 10, 31))
+
+
+def test_sorting_and_stale_filter(settings):
+    from datetime import date, timedelta
+
+    conn = db.connect(settings.db_path)
+    db.migrate(conn)
+    lauren = users.upsert_by_email(conn, "lauren@example.com")
+    from app import wear
+
+    a = outfits.create_outfit(conn, lauren.id, OutfitInput(name="Bravo"))
+    b = outfits.create_outfit(conn, lauren.id, OutfitInput(name="Alpha"))
+    outfits.create_outfit(conn, lauren.id, OutfitInput(name="Charlie"))
+    today = date.today()
+    wear.log_wear(conn, a.id, lauren.id, today - timedelta(days=90))
+    wear.log_wear(conn, b.id, lauren.id, today - timedelta(days=2))
+    wear.log_wear(conn, b.id, lauren.id, today - timedelta(days=9))
+    lib = outfits.list_outfits(conn, lauren.id)
+    counts = wear.wear_counts(conn, lauren.id)
+    assert [o.name for o in outfits.sort_outfits(lib, "name")] == ["Alpha", "Bravo", "Charlie"]
+    assert [o.name for o in outfits.sort_outfits(lib, "most_worn", counts)][0] == "Alpha"
+    assert [o.name for o in outfits.sort_outfits(lib, "least_worn", counts)][0] == "Charlie"
+    assert [o.name for o in outfits.sort_outfits(lib, "last_worn")][
+        0
+    ] == "Charlie"  # never worn first
+    stale = outfits.filter_outfits(lib, OutfitFilter(not_worn_days=60))
+    assert sorted(o.name for o in stale) == ["Bravo", "Charlie"]
+
+
+def test_trash_restore_and_purge(settings):
+    conn = db.connect(settings.db_path)
+    db.migrate(conn)
+    lauren = users.upsert_by_email(conn, "lauren@example.com")
+    o = outfits.create_outfit(conn, lauren.id, OutfitInput(name="Binned"))
+    outfits.trash_outfit(conn, o.id)
+    assert outfits.list_outfits(conn, lauren.id) == []
+    assert [x.id for x in outfits.list_deleted(conn, lauren.id)] == [o.id]
+    assert outfits.get_outfit(conn, o.id).deleted
+    outfits.restore_outfit(conn, o.id)
+    assert [x.id for x in outfits.list_outfits(conn, lauren.id)] == [o.id]
+    outfits.trash_outfit(conn, o.id)
+    assert outfits.purge_trash(conn, settings.photos_dir) == 0  # too fresh
+    conn.execute(
+        "UPDATE outfits SET deleted_at = datetime('now', '-40 days') WHERE id = ?", (o.id,)
+    )
+    assert outfits.purge_trash(conn, settings.photos_dir) == 1
+    assert outfits.get_outfit(conn, o.id) is None
+
+
+def test_trash_via_ui_and_settings(client, rsa_key):
+    h = lauren_headers(rsa_key)
+    client.post("/outfits", data={"name": "Oops"}, headers=h)
+    oid = re.search(r'href="/outfits/(\d+)"', client.get("/outfits", headers=h).text).group(1)
+    r = client.post(f"/outfits/{oid}/delete", headers=h, follow_redirects=False)
+    assert r.status_code == 303 and "binned=1" in r.headers["location"]
+    assert "Oops" not in client.get("/outfits", headers=h).text
+    r = client.get("/settings", headers=h)
+    assert "Oops" in r.text and "Restore" in r.text
+    r = client.get(f"/outfits/{oid}", headers=h)
+    assert "in the bin" in r.text
+    client.post(f"/outfits/{oid}/restore", headers=h)
+    assert "Oops" in client.get("/outfits", headers=h).text
+    client.post(f"/outfits/{oid}/delete", headers=h)
+    client.post(f"/outfits/{oid}/delete-forever", headers=h)
+    assert client.get(f"/outfits/{oid}", headers=h).status_code == 404
+
+
+def test_history_stats_render(client, rsa_key):
+    h = lauren_headers(rsa_key)
+    client.post(
+        "/outfits", data={"name": "Navy", "has_colours": "1", "colours": ["navy"]}, headers=h
+    )
+    r = client.get("/history", headers=h)
+    assert "outfits worn this month" in r.text and "not worn in 60 days" in r.text
+    assert "most used colours" in r.text

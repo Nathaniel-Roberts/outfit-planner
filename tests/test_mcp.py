@@ -202,6 +202,7 @@ def test_tool_contracts_via_bearer_token(mcp_app, rsa_key):
             "list_tags",
             "list_colour_rules",
             "get_outfit_photo",
+            "mark_in_wash",
         ]
     )
     assert out["templates"] == ["outfit://{outfit_id}/photo/{index}"]

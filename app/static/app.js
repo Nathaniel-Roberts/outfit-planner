@@ -44,6 +44,51 @@
         if (form) { form.hidden = !form.hidden; if (!form.hidden) form.querySelector('input').focus(); }
       });
     });
+    // Lightbox: tap a photo in the strip for full screen, swipe between, double-tap to zoom.
+    root.querySelectorAll('[data-lightbox] img').forEach(function (img) {
+      if (img.dataset.bound) return;
+      img.dataset.bound = '1';
+      img.style.cursor = 'zoom-in';
+      img.addEventListener('click', function () {
+        var strip = img.closest('[data-lightbox]');
+        var imgs = Array.prototype.slice.call(strip.querySelectorAll('img'));
+        var box = document.createElement('div');
+        box.className = 'lightbox';
+        box.setAttribute('role', 'dialog');
+        box.setAttribute('aria-label', 'Photo viewer');
+        var track = document.createElement('div');
+        track.className = 'track';
+        imgs.forEach(function (src) {
+          var full = document.createElement('img');
+          full.src = src.dataset.full || src.src;
+          full.alt = src.alt || '';
+          var last = 0;
+          full.addEventListener('click', function (e) {
+            var now = Date.now();
+            if (now - last < 320) { full.classList.toggle('zoom'); }
+            last = now;
+          });
+          track.appendChild(full);
+        });
+        var close = document.createElement('button');
+        close.className = 'close'; close.type = 'button'; close.setAttribute('aria-label', 'Close'); close.textContent = '×';
+        var count = document.createElement('div'); count.className = 'count';
+        function updateCount() {
+          var i = Math.round(track.scrollLeft / Math.max(1, track.clientWidth)) + 1;
+          count.textContent = imgs.length > 1 ? i + ' of ' + imgs.length : '';
+        }
+        track.addEventListener('scroll', updateCount, { passive: true });
+        function dismiss() { box.remove(); document.body.classList.remove('has-lightbox'); document.removeEventListener('keydown', onKey); }
+        function onKey(e) { if (e.key === 'Escape') dismiss(); }
+        close.addEventListener('click', dismiss);
+        document.addEventListener('keydown', onKey);
+        box.appendChild(track); box.appendChild(close); box.appendChild(count);
+        document.body.appendChild(box);
+        document.body.classList.add('has-lightbox');
+        track.scrollLeft = imgs.indexOf(img) * track.clientWidth;
+        updateCount();
+      });
+    });
     // Colour pairing hint, if the page has one.
     var hint = root.querySelector('#colour-hint');
     if (hint && !hint.dataset.bound) {

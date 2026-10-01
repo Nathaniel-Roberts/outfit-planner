@@ -181,7 +181,7 @@ def test_photo_first_flow(client, rsa_key):
     assert "Last worn" in r.text
     r = client.post(f"/outfits/{outfit_id}/delete", headers=h, follow_redirects=False)
     assert r.status_code == 303
-    assert client.get(f"/outfits/{outfit_id}", headers=h).status_code == 404
+    assert "in the bin" in client.get(f"/outfits/{outfit_id}", headers=h).text
 
 
 def test_bad_photo_upload_is_400(client, rsa_key):

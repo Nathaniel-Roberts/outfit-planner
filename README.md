@@ -5,8 +5,11 @@ then on any morning filtering down to the outfits that suit that day's activitie
 weather.
 
 - Mobile-first, installable as a PWA. Photograph the outfit in the mirror, tag it, save.
-- "Today" screen: current forecast, pick today's activity tags, outfits ranked best to worst.
-- Library browsing by tag, colour and temperature. Wear history and calendar.
+- "Today" screen: working-hours forecast, today's activity tags (pre-filled from a weekly
+  routine), outfits grouped by fit with a short reason each, one tap to wear. Plan tomorrow
+  the night before. Mark things "in the wash". Say how yesterday felt and the ranges learn.
+- Library browsing by tag, colour, temperature, with sorting. Wear history, calendar and stats.
+- Deleted outfits sit in a bin for 30 days. Automatic daily backups.
 - Colour palette with simple extraction from the photo, plus your own pairing rules.
 - Single Docker image, SQLite and photos in one `/data` volume, no cloud storage.
 - Sits behind Cloudflare Access. Exposes an MCP server at `/mcp` so Claude can help.

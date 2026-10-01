@@ -39,11 +39,23 @@ Docker is not required for development. The image is built from `Dockerfile` on 
 - `app/images.py` upload processing (EXIF stripped, original/web/thumb). `app/colours.py` palette and extraction.
 - `app/mcp_server.py` the MCP server (tools, photo resources, auth middleware) served at `/mcp`.
 - `app/backup.py` zip export/import, also a CLI: `python -m app.backup export|import`.
+- `app/maintenance.py` in-process housekeeping: daily backup into `DATA_DIR/backups`, trash purge.
 - `app/routers/` feature routers: today, outfits, history, settings, wear, backup.
 - `app/templates/`, `app/static/` server-rendered UI. `static/sw.js` is the service worker.
 - `migrations/` numbered SQL files. Add a new file for schema changes; never edit an applied one.
 - `tests/` focused on scoring, Access JWT verification, images, backup and MCP tool contracts.
 - `docs/deploy.md` deployment: compose, Cloudflare Tunnel, Access, Claude connection, backups.
+
+## Feature notes
+
+- Today serves any date (`?day=today|tomorrow|YYYY-MM-DD`); after 6pm it opens on Tomorrow.
+  Per-day tag choices and manual weather live in `user_settings` as JSON maps keyed by date.
+- Weekly routine (`user_settings.routine`) pre-selects tags per weekday when nothing was chosen.
+- Forecast temperatures are the 7am to 6pm range from Open-Meteo hourly data; the overnight
+  minimum is display-only (`DayForecast.night_min`).
+- Wear feedback (`wear_log.feedback`: hot/cold/ok/skip) nudges the outfit's range by 1 degree.
+- `outfits.unavailable_until` is "in the wash"; `outfits.deleted_at` is the bin (30 days).
+- Scoring exposes `fit` (great/good/poor) alongside the score; the UI groups by it.
 
 ## Conventions
 

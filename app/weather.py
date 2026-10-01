@@ -1,9 +1,11 @@
 """Forecast from Open-Meteo, cached in SQLite, with graceful degradation.
 
-Open-Meteo is free and needs no key. We ask for three days of daily values and
-cache the raw payload for an hour. If the fetch fails we serve the stale cache
-(flagged as stale); if there is no cache at all, the Today screen falls back to
-manual weather.
+Open-Meteo is free and needs no key. We ask for three days of hourly and daily
+values and cache the raw payload for an hour. Temperatures used for scoring are
+the working-hours range (7am to 6pm), because a 4am overnight low says nothing
+about what the day will feel like at the clinic. The overnight minimum is kept
+for display. If the fetch fails we serve the stale cache (flagged as stale); if
+there is no cache at all, the Today screen falls back to manual weather.
 """
 
 from __future__ import annotations
@@ -28,6 +30,13 @@ DAILY_FIELDS = [
     "relative_humidity_2m_mean",
     "weather_code",
 ]
+HOURLY_FIELDS = [
+    "temperature_2m",
+    "precipitation_probability",
+    "wind_speed_10m",
+    "relative_humidity_2m",
+]
+WORK_HOURS = range(7, 19)  # 7am to 6pm inclusive
 CACHE_TTL = timedelta(hours=1)
 
 RAIN_CHANCE_THRESHOLD = 40  # percent
@@ -77,6 +86,8 @@ class DayForecast:
     weather_code: int | None
     stale: bool = False
     manual: bool = False
+    night_min: float | None = None  # overnight low, for display only
+    day_max: float | None = None  # full-day high, for display only
 
     @property
     def label(self) -> str:
@@ -99,8 +110,14 @@ class DayForecast:
         return self.temp_max >= HUMID_TEMP_THRESHOLD and self.humidity >= HUMID_RH_THRESHOLD
 
     @property
+    def work_hours(self) -> bool:
+        return self.night_min is not None and not self.manual
+
+    @property
     def summary(self) -> str:
         parts = [f"{round(self.temp_min)} to {round(self.temp_max)}°"]
+        if self.work_hours and self.night_min is not None and self.night_min < self.temp_min - 1:
+            parts[0] += f" during the day ({round(self.night_min)}° overnight)"
         parts.append(f"{self.rain_chance}% rain")
         parts.append(f"wind {round(self.wind_max)} km/h")
         if self.humid:
@@ -122,9 +139,31 @@ class DayForecast:
         return data
 
 
+def _hourly_by_day(payload: dict) -> dict[str, dict[str, list[float]]]:
+    """Working-hours hourly values grouped by ISO date."""
+    hourly = payload.get("hourly") or {}
+    times = hourly.get("time") or []
+    out: dict[str, dict[str, list[float]]] = {}
+    for i, stamp in enumerate(times):
+        try:
+            day_str, hour_str = stamp.split("T")
+            hour = int(hour_str[:2])
+        except (ValueError, AttributeError):
+            continue
+        if hour not in WORK_HOURS:
+            continue
+        bucket = out.setdefault(day_str, {k: [] for k in HOURLY_FIELDS})
+        for key in HOURLY_FIELDS:
+            values = hourly.get(key) or []
+            if i < len(values) and values[i] is not None:
+                bucket[key].append(float(values[i]))
+    return out
+
+
 def _parse(payload: dict, stale: bool) -> list[DayForecast]:
     daily = payload.get("daily") or {}
     days = daily.get("time") or []
+    by_day = _hourly_by_day(payload)
     out: list[DayForecast] = []
 
     def pick(key: str, i: int, default=None):
@@ -133,25 +172,42 @@ def _parse(payload: dict, stale: bool) -> list[DayForecast]:
 
     for i, day_str in enumerate(days):
         try:
+            day_min = float(pick("temperature_2m_min", i, 0.0))
+            day_max = float(pick("temperature_2m_max", i, 0.0))
+            rain_chance = int(pick("precipitation_probability_max", i, 0) or 0)
+            wind_max = float(pick("wind_speed_10m_max", i, 0.0) or 0.0)
+            humidity_raw = pick("relative_humidity_2m_mean", i)
+            humidity = int(humidity_raw) if humidity_raw is not None else None
+            temp_min, temp_max = day_min, day_max
+            night_min: float | None = None
+
+            hours = by_day.get(day_str)
+            if hours and hours["temperature_2m"]:
+                temps = hours["temperature_2m"]
+                temp_min, temp_max = min(temps), max(temps)
+                night_min = day_min
+                if hours["precipitation_probability"]:
+                    rain_chance = int(max(hours["precipitation_probability"]))
+                if hours["wind_speed_10m"]:
+                    wind_max = max(hours["wind_speed_10m"])
+                if hours["relative_humidity_2m"]:
+                    rh = hours["relative_humidity_2m"]
+                    humidity = int(round(sum(rh) / len(rh)))
+
+            code = pick("weather_code", i)
             out.append(
                 DayForecast(
                     day=date.fromisoformat(day_str),
-                    temp_min=float(pick("temperature_2m_min", i, 0.0)),
-                    temp_max=float(pick("temperature_2m_max", i, 0.0)),
-                    rain_chance=int(pick("precipitation_probability_max", i, 0) or 0),
+                    temp_min=temp_min,
+                    temp_max=temp_max,
+                    rain_chance=rain_chance,
                     rain_mm=float(pick("precipitation_sum", i, 0.0) or 0.0),
-                    wind_max=float(pick("wind_speed_10m_max", i, 0.0) or 0.0),
-                    humidity=(
-                        int(pick("relative_humidity_2m_mean", i))
-                        if pick("relative_humidity_2m_mean", i) is not None
-                        else None
-                    ),
-                    weather_code=(
-                        int(pick("weather_code", i))
-                        if pick("weather_code", i) is not None
-                        else None
-                    ),
+                    wind_max=wind_max,
+                    humidity=humidity,
+                    weather_code=int(code) if code is not None else None,
                     stale=stale,
+                    night_min=night_min,
+                    day_max=day_max,
                 )
             )
         except (TypeError, ValueError) as exc:
@@ -164,6 +220,7 @@ def fetch_payload(lat: float, lon: float, tz: str, days: int = 3) -> dict:
         "latitude": f"{lat:.4f}",
         "longitude": f"{lon:.4f}",
         "daily": ",".join(DAILY_FIELDS),
+        "hourly": ",".join(HOURLY_FIELDS),
         "timezone": tz,
         "forecast_days": str(days),
     }

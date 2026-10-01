@@ -1,13 +1,22 @@
 {% extends "base.html" %}
-{% block title %}Today · Outfit Planner{% endblock %}
-{% block heading %}{{ today|au_day }}{% endblock %}
+{% block title %}{{ 'Today' if is_today else ('Tomorrow' if is_tomorrow else day|au_day) }} · Outfit Planner{% endblock %}
+{% block heading %}{{ day|au_day }}{% endblock %}
 {% block content %}
+<div class="seg" role="tablist" aria-label="Day">
+  <a href="/?day=today" class="{% if is_today %}on{% endif %}" role="tab" aria-selected="{{ 'true' if is_today else 'false' }}">Today</a>
+  <a href="/?day=tomorrow" class="{% if is_tomorrow %}on{% endif %}" role="tab" aria-selected="{{ 'true' if is_tomorrow else 'false' }}">Tomorrow</a>
+  {% if not is_today and not is_tomorrow %}<span class="on" role="tab" aria-selected="true">{{ day|au_date }}</span>{% endif %}
+</div>
+
 <div class="card weather">
   {% if forecast %}
   <div class="row">
     <div>
       <div class="temps">{{ forecast.temp_max|degrees }} <span class="lo">/ {{ forecast.temp_min|degrees }}</span></div>
-      <div class="desc small muted">{{ forecast.label }}{% if forecast.label %} · {% endif %}{{ forecast.rain_chance }}% chance of rain · wind {{ forecast.wind_max|round|int }} km/h{% if forecast.humid %} · humid{% endif %}</div>
+      <div class="desc small muted">
+        {{ forecast.label }}{% if forecast.label %} · {% endif %}{{ forecast.rain_chance }}% chance of rain · wind {{ forecast.wind_max|round|int }} km/h{% if forecast.humid %} · humid{% endif %}
+        {% if forecast.work_hours and forecast.night_min is not none and forecast.night_min < forecast.temp_min - 1 %}<br>Working hours. Overnight low {{ forecast.night_min|degrees }}.{% endif %}
+      </div>
       {% if forecast.stale %}<div class="small" style="color:var(--warn); margin-top:4px">Forecast may be out of date (couldn't reach the weather service).</div>{% endif %}
     </div>
     <details class="override">
@@ -16,19 +25,40 @@
   </div>
   <div class="override-form" id="override-form" hidden>{% include "partials/weather_form.html" %}</div>
   {% else %}
-  <p><strong>No forecast available.</strong> <span class="muted small">Set today's weather by hand.</span></p>
+  <p><strong>No forecast available{% if not is_today %} for that day{% endif %}.</strong> <span class="muted small">Set the weather by hand.</span></p>
   <div class="override-form" id="override-form">{% include "partials/weather_form.html" %}</div>
   {% endif %}
 </div>
 
+{% if feedback_due %}
+<div class="card feedback">
+  <h2>How was {{ 'yesterday' if (today - feedback_due[0][0].worn_on).days == 1 else feedback_due[0][0].worn_on|au_day }}?</h2>
+  {% for entry, outfit in feedback_due %}
+  <div class="worn-now">
+    {% if outfit.cover %}<img src="{{ outfit.cover.thumb_url }}" alt="">{% endif %}
+    <div style="flex:1; min-width:0">
+      <a href="/outfits/{{ outfit.id }}">{{ outfit.display_name }}</a>
+      <form method="post" action="/today/feedback/{{ entry.id }}" class="chips" style="margin-top:6px">
+        <button class="chip" name="feedback" value="cold" type="submit">Too cold</button>
+        <button class="chip" name="feedback" value="ok" type="submit">Just right</button>
+        <button class="chip" name="feedback" value="hot" type="submit">Too hot</button>
+        <button class="btn ghost small" name="feedback" value="skip" type="submit" aria-label="Skip">Skip</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+  <p class="small muted" style="margin:8px 0 0">Too hot or too cold nudges that outfit's temperature range by a degree.</p>
+</div>
+{% endif %}
+
 {% if worn_today %}
 <div class="card">
-  <h2>Wearing today</h2>
+  <h2>{{ 'Wearing today' if is_today else 'Planned' }}</h2>
   {% for entry, outfit in worn_today %}
   <div class="worn-now">
     {% if outfit and outfit.cover %}<img src="{{ outfit.cover.thumb_url }}" alt="">{% endif %}
     <a href="/outfits/{{ entry.outfit_id }}">{{ outfit.display_name if outfit else 'Outfit ' ~ entry.outfit_id }}</a>
-    <form method="post" action="/wear/entry/{{ entry.id }}/delete"><input type="hidden" name="next" value="/"><button class="btn small" type="submit">Undo</button></form>
+    <form method="post" action="/wear/entry/{{ entry.id }}/delete"><input type="hidden" name="next" value="/?day={{ day.isoformat() }}"><button class="btn small" type="submit">Undo</button></form>
   </div>
   {% endfor %}
 </div>
@@ -36,12 +66,14 @@
 
 <form id="tag-form" hx-get="/today/results" hx-trigger="change" hx-target="#results" hx-swap="innerHTML" hx-push-url="false" class="card">
   <input type="hidden" name="tags_set" value="1">
-  <h2>What's on today?</h2>
+  <input type="hidden" name="day" value="{{ day.isoformat() }}">
+  <h2>What's on {{ 'today' if is_today else ('tomorrow' if is_tomorrow else 'that day') }}?</h2>
   <div class="chips">
     {% for t in all_tags %}
     <label class="chip"><input type="checkbox" name="tags" value="{{ t.id }}" {% if t.id in selected %}checked{% endif %}>{{ t.name }}</label>
     {% endfor %}
   </div>
+  {% if from_routine %}<p class="small muted" style="margin:10px 0 0">From your {{ day.strftime('%A') }} routine. Change it in <a href="/settings#routine">Settings</a>.</p>{% endif %}
   <noscript><button type="submit" formaction="/" formmethod="get" style="margin-top:8px">Update</button></noscript>
 </form>
 

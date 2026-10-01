@@ -9,6 +9,10 @@
   "background_color": "#f7f5f1",
   "theme_color": "#2f5d50",
   "lang": "en-AU",
+  "shortcuts": [
+    { "name": "Add outfit", "short_name": "Add", "url": "/outfits/new", "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Tomorrow", "short_name": "Tomorrow", "url": "/?day=tomorrow", "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }] }
+  ],
   "icons": [
     { "src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },

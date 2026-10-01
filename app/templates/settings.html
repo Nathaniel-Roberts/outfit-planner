@@ -18,6 +18,25 @@
 </div>
 {% endif %}
 
+{% set tag_names = {} %}{% for t in all_tags %}{% set _ = tag_names.update({t.id: t.name}) %}{% endfor %}
+<details class="card filters" id="routine" {% if not routine or request.query_params.get('saved') == 'routine' %}open{% endif %}>
+  <summary><span>Weekly routine</span><span class="muted small">{{ 'set for ' ~ routine|length ~ ' day' ~ ('' if routine|length == 1 else 's') if routine else 'not set' }}</span></summary>
+  <p class="small muted" style="margin-top:8px">Which kind of day each weekday usually is. Today pre-selects these so most mornings need no taps. Leave a day blank if it varies.</p>
+  {% if request.query_params.get('saved') == 'routine' %}<div class="flash">Routine saved.</div>{% endif %}
+  <form method="post" action="/settings/routine">
+    {% for name in weekdays %}
+    {% set wd = loop.index0 %}
+    <div class="routine-row">
+      <div class="routine-day">{{ name[:3] }}</div>
+      <div class="chips">
+        {% for t in all_tags %}<label class="chip small"><input type="checkbox" name="routine_{{ wd }}" value="{{ t.id }}" {% if t.id in routine.get(wd, []) %}checked{% endif %}>{{ t.name }}</label>{% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+    <p style="margin-top:12px"><button class="primary" type="submit">Save routine</button></p>
+  </form>
+</details>
+
 <div class="card" id="tags">
   <h2>Activity tags</h2>
   <p class="small muted" style="margin-bottom:4px">Rename or remove tags. Deleting a tag removes it from outfits but keeps the outfits.</p>
@@ -57,12 +76,28 @@
   </form>
 </div>
 
+<div class="card" id="bin">
+  <h2>Bin</h2>
+  <p class="small muted">Deleted outfits stay here for {{ trash_days }} days, then they're removed for good.</p>
+  {% if binned %}
+  {% for o in binned %}
+  <div class="worn-now">
+    {% if o.cover %}<img src="{{ o.cover.thumb_url }}" alt="">{% endif %}
+    <div style="flex:1; min-width:0"><a href="/outfits/{{ o.id }}">{{ o.display_name }}</a><div class="small muted">deleted {{ o.deleted_at|au_date }}</div></div>
+    <form method="post" action="/outfits/{{ o.id }}/restore"><button class="btn small" type="submit">Restore</button></form>
+    <form method="post" action="/outfits/{{ o.id }}/delete-forever" onsubmit="return confirm('Delete forever? This cannot be undone.')"><button class="btn small danger" type="submit" aria-label="Delete forever">×</button></form>
+  </div>
+  {% endfor %}
+  {% else %}<p class="muted">Empty.</p>{% endif %}
+</div>
+
 {% if user.is_admin %}
 <div class="card" id="backup">
   <h2>Backup</h2>
   {% if request.query_params.get('restored') is not none %}<div class="flash">Restore complete. {{ request.query_params.get('restored') }} photo files restored.</div>{% endif %}
   {% if request.query_params.get('restore') == 'unconfirmed' %}<div class="flash error">Type REPLACE in the box to confirm a restore.</div>{% endif %}
   <p class="small muted">The export is one zip with the database and every photo. Keep a copy somewhere else.</p>
+  <p class="small muted">{% if settings.auto_backup %}Automatic backups run daily into the data folder, keeping the newest {{ settings.backup_keep }}.{% if latest_backup %} Latest: {{ latest_backup.name }}.{% else %} None written yet.{% endif %}{% else %}Automatic backups are off (AUTO_BACKUP=false).{% endif %}</p>
   <p><a class="btn" href="/backup/export">Download backup</a></p>
   <details style="margin-top:8px">
     <summary class="small muted" style="cursor:pointer">Restore from a backup (replaces everything)</summary>

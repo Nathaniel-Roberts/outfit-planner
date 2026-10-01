@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import logging
 import sqlite3
@@ -14,7 +15,7 @@ from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.routing import Route
 
-from app import db, users
+from app import db, maintenance, users
 from app.auth import (
     SESSION_COOKIE,
     SESSION_MAX_AGE,
@@ -88,8 +89,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "Cloudflare Access is not configured (CF_ACCESS_TEAM_DOMAIN / CF_ACCESS_AUD). "
                 "Only the admin login protects this app. Do not expose it."
             )
-        async with app.state.mcp_server.session_manager.run():
-            yield
+        housekeeping = asyncio.create_task(maintenance.run_forever(settings, app_version()))
+        try:
+            async with app.state.mcp_server.session_manager.run():
+                yield
+        finally:
+            housekeeping.cancel()
 
     app = FastAPI(title="Outfit Planner", lifespan=lifespan, docs_url=None, redoc_url=None)
     app.state.settings = settings

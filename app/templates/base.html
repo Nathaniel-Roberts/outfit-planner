@@ -12,7 +12,12 @@
   <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Outfits">
+  {% for w, h, dpr in [(430, 932, 3), (393, 852, 3), (428, 926, 3), (390, 844, 3), (414, 896, 3), (414, 896, 2), (375, 812, 3), (375, 667, 2), (402, 874, 3), (440, 956, 3)] %}
+  <link rel="apple-touch-startup-image" href="/static/splash/splash-{{ w * dpr }}x{{ h * dpr }}.png" media="(device-width: {{ w }}px) and (device-height: {{ h }}px) and (-webkit-device-pixel-ratio: {{ dpr }}) and (orientation: portrait)">
+  {% endfor %}
   <script src="/static/vendor/htmx.min.js" defer></script>
 </head>
 <body hx-boost="true">

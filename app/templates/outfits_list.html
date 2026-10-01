@@ -2,8 +2,9 @@
 {% block title %}Library · Outfit Planner{% endblock %}
 {% block heading %}Library{% endblock %}
 {% block content %}
-<details class="card filters" {% if filter.active %}open{% endif %}>
-  <summary><span>{{ 'Filters on' if filter.active else 'Filter' }}</span><span class="muted small">{{ outfits|length }} outfit{{ '' if outfits|length == 1 else 's' }}{% if viewer.id != user.id %} · {{ viewer.display_name }}{% endif %}</span></summary>
+{% if request.query_params.get('binned') %}<div class="flash">Moved to the bin. Restore it from <a href="/settings#bin">Settings</a> within 30 days.</div>{% endif %}
+<details class="card filters" {% if filter.active or filter.sort != 'newest' %}open{% endif %}>
+  <summary><span>{{ 'Filters on' if filter.active or filter.sort != 'newest' else 'Filter and sort' }}</span><span class="muted small">{{ outfits|length }} outfit{{ '' if outfits|length == 1 else 's' }}{% if viewer.id != user.id %} · {{ viewer.display_name }}{% endif %}</span></summary>
   <form method="get" action="/outfits" id="filter-form">
     {% if archived %}<input type="hidden" name="archived" value="1">{% endif %}
     <input type="search" name="q" value="{{ filter.query or '' }}" placeholder="Search names, notes, garments" aria-label="Search" style="margin-top:10px">
@@ -13,11 +14,17 @@
     <div class="chips" style="margin-top:10px">
       {% for s in palette_list %}<label class="chip swatch-chip" title="{{ s.label }}"><input type="checkbox" name="colour" value="{{ s.key }}" {% if s.key in filter.colours %}checked{% endif %}><span style="background:{{ s.hex }}"></span></label>{% endfor %}
     </div>
-    <div style="display:flex; gap:8px; align-items:flex-end; margin-top:10px; flex-wrap:wrap">
+    <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap">
       <div style="flex:1 1 120px"><label for="temp" style="margin-top:0">Suits °C</label><input id="temp" name="temp" type="number" inputmode="numeric" step="1" value="{{ filter.temperature|round|int if filter.temperature is not none else '' }}" placeholder="e.g. 22"></div>
-      <label class="chip" style="min-height:48px"><input type="checkbox" name="favourite" value="1" {% if filter.favourite %}checked{% endif %}>★ Favourites</label>
+      <div style="flex:1 1 140px"><label for="sort" style="margin-top:0">Sort</label><select id="sort" name="sort">{% for key, label in sorts.items() %}<option value="{{ key }}" {% if filter.sort == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    </div>
+    <div class="chips" style="margin-top:10px">
+      <label class="chip"><input type="checkbox" name="favourite" value="1" {% if filter.favourite %}checked{% endif %}>★ Favourites</label>
+      <label class="chip"><input type="checkbox" name="stale" value="60" {% if filter.not_worn_days %}checked{% endif %}>Not worn in 60 days</label>
+    </div>
+    <div style="display:flex; gap:8px; margin-top:12px">
       <button class="primary" type="submit">Apply</button>
-      {% if filter.active %}<a class="btn" href="/outfits{% if archived %}?archived=1{% endif %}">Clear</a>{% endif %}
+      {% if filter.active or filter.sort != 'newest' %}<a class="btn" href="/outfits{% if archived %}?archived=1{% endif %}">Clear</a>{% endif %}
     </div>
   </form>
 </details>

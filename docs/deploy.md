@@ -275,7 +275,11 @@ docker compose exec app python -m app.backup import /data/restore.zip
 docker compose restart app
 ```
 
-**Scheduled.** A nightly cron on the host is enough:
+**Automatic.** The app writes its own backup once a day into `./data/backups/` and keeps
+the newest 14 (`AUTO_BACKUP`, `BACKUP_KEEP`). Settings > Backup shows the latest one. Copy
+that folder off the box with whatever already backs up the server.
+
+**Scheduled copy elsewhere.** A nightly cron on the host, if you want zips somewhere else:
 
 ```
 15 2 * * * cd /opt/stacks/outfit-planner && docker compose exec -T app python -m app.backup export /data/nightly.zip && cp data/nightly.zip /mnt/backups/outfit-planner-$(date +\%F).zip
@@ -315,6 +319,8 @@ Database migrations run automatically at startup. Take a backup first.
 | `MCP_USER_EMAIL` | | Whose wardrobe service tokens and the bearer token act on |
 | `MCP_BEARER_TOKEN` | | Fallback auth for MCP clients that cannot send Access headers |
 | `PUBLIC_BASE_URL` | | Used to build absolute photo URLs in MCP responses |
+| `AUTO_BACKUP` | `true` | Write a backup zip into `DATA_DIR/backups` once a day |
+| `BACKUP_KEEP` | `14` | How many automatic backups to keep |
 | `DEV_MODE` | `false` | Bypass Access and sign in as a dev admin. Local use only |
 
 To produce an argon2 hash instead of keeping the plain password in `.env`:

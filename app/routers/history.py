@@ -62,6 +62,29 @@ def history(request: Request, user: User = Depends(require_user), month: str | N
     prev_month = (first - timedelta(days=1)).replace(day=1)
     next_month = (last + timedelta(days=1)).replace(day=1)
 
+    # Wardrobe stats.
+    this_month_start = today.replace(day=1)
+    worn_this_month = {
+        e.outfit_id for e in wear.entries_between(conn, viewer.id, this_month_start, today)
+    }
+    stale_cutoff = today - timedelta(days=60)
+    stale = [o for o in active if o.last_worn_on is None or o.last_worn_on < stale_cutoff]
+    colour_tally: dict[str, int] = {}
+    for o in active:
+        for c in o.colours:
+            colour_tally[c] = colour_tally.get(c, 0) + 1
+    top_colours = sorted(colour_tally.items(), key=lambda kv: -kv[1])[:5]
+    stats = {
+        "active": len(active),
+        "worn_this_month": len(worn_this_month & {o.id for o in active}),
+        "wears_this_month": sum(
+            1 for e in wear.entries_between(conn, viewer.id, this_month_start, today)
+        ),
+        "stale": len(stale),
+        "top_colours": top_colours,
+        "favourites": sum(1 for o in active if o.favourite),
+    }
+
     return render(
         request.app.state.templates,
         request,
@@ -75,6 +98,7 @@ def history(request: Request, user: User = Depends(require_user), month: str | N
         most=[(o, counts.get(o.id, 0)) for o in most if counts.get(o.id, 0)],
         least=[(o, counts.get(o.id, 0)) for o in least],
         total=sum(counts.values()),
+        stats=stats,
         palette=palette.BY_KEY,
         viewer=viewer,
         nav="history",

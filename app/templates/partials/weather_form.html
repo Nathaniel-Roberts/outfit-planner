@@ -1,4 +1,5 @@
 <form method="post" action="/today/weather">
+  <input type="hidden" name="day" value="{{ day.isoformat() if day is defined else '' }}">
   <div style="display:flex; gap:10px">
     <div style="flex:1"><label for="ov_min" style="margin-top:0">Min °C</label><input id="ov_min" name="temp_min" type="number" inputmode="numeric" step="1" required value="{{ forecast.temp_min|round|int if forecast else '' }}"></div>
     <div style="flex:1"><label for="ov_max" style="margin-top:0">Max °C</label><input id="ov_max" name="temp_max" type="number" inputmode="numeric" step="1" required value="{{ forecast.temp_max|round|int if forecast else '' }}"></div>

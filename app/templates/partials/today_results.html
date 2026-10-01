@@ -1,3 +1,5 @@
+{% set wear_label = 'Wear this' if is_today else 'Plan this' %}
+{% set worn_label = 'Wearing this' if is_today else 'Planned' %}
 {% macro row(s) -%}
   <div class="ranked-row {% if s.outfit.id in worn_ids %}worn{% endif %}">
     <a href="/outfits/{{ s.outfit.id }}" class="thumb">
@@ -8,20 +10,35 @@
       <a href="/outfits/{{ s.outfit.id }}" class="name">{{ s.outfit.display_name }}{% if s.outfit.favourite %} ★{% endif %}</a>
       <div class="swatches">{% for c in s.outfit.colours %}<span style="background:{{ palette[c].hex if c in palette else '#ccc' }}"></span>{% endfor %}</div>
       <div class="why small muted">{{ s.why }}</div>
-      <form method="post" action="/wear/{{ s.outfit.id }}" hx-post="/wear/{{ s.outfit.id }}" hx-swap="none">
-        <input type="hidden" name="next" value="/">
-        <button class="btn small {% if s.outfit.id in worn_ids %}on{% endif %}" type="submit">{{ 'Wearing this' if s.outfit.id in worn_ids else 'Wear this' }}</button>
-      </form>
+      <div class="row-actions">
+        <form method="post" action="/wear/{{ s.outfit.id }}" hx-post="/wear/{{ s.outfit.id }}" hx-swap="none">
+          <input type="hidden" name="worn_on" value="{{ day.isoformat() }}">
+          <input type="hidden" name="next" value="/?day={{ day.isoformat() }}">
+          <button class="btn small {% if s.outfit.id in worn_ids %}on{% endif %}" type="submit">{{ worn_label if s.outfit.id in worn_ids else wear_label }}</button>
+        </form>
+        <form method="post" action="/outfits/{{ s.outfit.id }}/wash" hx-post="/outfits/{{ s.outfit.id }}/wash" hx-swap="none">
+          <input type="hidden" name="days" value="3">
+          <button class="btn small ghost" type="submit" title="Hide for 3 days">In the wash</button>
+        </form>
+      </div>
     </div>
   </div>
 {%- endmacro %}
-{% if not ranked %}
+{% if not ranked and not in_wash %}
 <div class="card"><p>No outfits yet.</p><p><a class="btn primary" href="/outfits/new">Add the first one</a></p></div>
 {% else %}
 {% set best = ranked|selectattr('fit', 'ne', 'poor')|list %}
 {% set rest = ranked|selectattr('fit', 'eq', 'poor')|list %}
+{% set top = best[0] if best else (rest[0] if rest else none) %}
+{% if top and top.outfit.id not in worn_ids and not worn_ids %}
+<form method="post" action="/wear/{{ top.outfit.id }}" class="pick">
+  <input type="hidden" name="worn_on" value="{{ day.isoformat() }}">
+  <input type="hidden" name="next" value="/?day={{ day.isoformat() }}">
+  <button class="btn primary block" type="submit">{{ 'Pick for me' if is_today else 'Plan the top pick' }}: {{ top.outfit.display_name }}</button>
+</form>
+{% endif %}
 <div class="section-title">
-  <h2>{{ 'Best for today' if best else 'Closest matches' }}</h2>
+  <h2>{{ ('Best for today' if is_today else 'Best for ' ~ ('tomorrow' if is_tomorrow else day|au_day)) if best else 'Closest matches' }}</h2>
   <span class="small muted">{{ best|length if best else rest|length }} of {{ ranked|length }}</span>
 </div>
 <div class="ranked">
@@ -37,6 +54,21 @@
 <details class="more" style="margin-top:14px">
   <summary><span class="btn">Everything else ({{ rest|length - 3 }})</span></summary>
   <div class="ranked">{% for s in rest[3:] %}{{ row(s) }}{% endfor %}</div>
+</details>
+{% endif %}
+{% if in_wash %}
+<details class="more" style="margin-top:14px">
+  <summary><span class="btn ghost">In the wash ({{ in_wash|length }})</span></summary>
+  <div class="card">
+    {% for o in in_wash %}
+    <div class="worn-now">
+      {% if o.cover %}<img src="{{ o.cover.thumb_url }}" alt="">{% endif %}
+      <a href="/outfits/{{ o.id }}">{{ o.display_name }}</a>
+      <span class="small muted">back {{ (o.unavailable_until + (1|days))|au_day }}</span>
+      <form method="post" action="/outfits/{{ o.id }}/wash" hx-post="/outfits/{{ o.id }}/wash" hx-swap="none"><input type="hidden" name="days" value="0"><button class="btn small" type="submit">Clean</button></form>
+    </div>
+    {% endfor %}
+  </div>
 </details>
 {% endif %}
 {% endif %}
