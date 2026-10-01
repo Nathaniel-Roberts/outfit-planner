@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Add outfit · Outfit Planner{% endblock %}
+{% block heading %}Add an outfit{% endblock %}
+{% block content %}
+<form method="post" action="/outfits" enctype="multipart/form-data" id="photo-first" class="card" style="text-align:center">
+  <input type="hidden" name="then" value="edit">
+  <label class="btn primary block" style="min-height:120px; font-size:1.2rem; margin:0">
+    <span>Take or choose a photo</span>
+    <input type="file" name="photo" accept="image/*" style="position:absolute; opacity:0; width:1px; height:1px" data-autosubmit>
+  </label>
+  <p class="muted small" style="margin-top:12px">Stand in front of the mirror, snap, then tag it. Colours get suggested from the photo.</p>
+  <p><button class="btn block" type="submit" formaction="/outfits/new?details=1" formmethod="get" formnovalidate>Add details without a photo</button></p>
+</form>
+{% endblock %}
+{% block scripts %}<script src="/static/app.js" defer></script>{% endblock %}

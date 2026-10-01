@@ -1,0 +1,12 @@
+<a class="outfit-card" href="/outfits/{{ outfit.id }}">
+  {% if outfit.cover %}
+  <img src="{{ outfit.cover.thumb_url }}" alt="{{ outfit.display_name }}" loading="lazy" width="{{ outfit.cover.width or 480 }}" height="{{ outfit.cover.height or 640 }}">
+  {% else %}
+  <div class="no-photo">No photo</div>
+  {% endif %}
+  <div class="meta">
+    <div class="name">{{ outfit.display_name }}{% if outfit.favourite %} ★{% endif %}</div>
+    <div class="swatches">{% for c in outfit.colours %}<span style="background:{{ palette[c].hex if c in palette else '#ccc' }}"></span>{% endfor %}</div>
+    {% if why is defined and why %}<div class="why small muted">{{ why }}</div>{% endif %}
+  </div>
+</a>

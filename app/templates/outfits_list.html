@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Library · Outfit Planner{% endblock %}
+{% block heading %}Library{% endblock %}
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
+  <span class="muted small">{{ outfits|length }} outfit{{ '' if outfits|length == 1 else 's' }}{% if viewer.id != user.id %} · viewing {{ viewer.display_name }}{% endif %}</span>
+  <a class="btn small" href="/outfits{% if not archived %}?archived=1{% endif %}">{{ 'Show active' if archived else 'Show archived' }}</a>
+</div>
+{% if not outfits %}
+<div class="card"><p>{% if archived %}Nothing archived.{% else %}No outfits yet.{% endif %}</p>{% if not archived %}<p><a class="btn primary" href="/outfits/new">Add the first one</a></p>{% endif %}</div>
+{% endif %}
+<div class="grid">
+  {% for outfit in outfits %}{% include "partials/outfit_card.html" %}{% endfor %}
+</div>
+{% endblock %}

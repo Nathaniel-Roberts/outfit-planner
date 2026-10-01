@@ -1,0 +1,4 @@
+<button class="btn {% if outfit.favourite %}on{% endif %}" type="button"
+  hx-post="/outfits/{{ outfit.id }}/favourite" hx-swap="outerHTML" aria-pressed="{{ 'true' if outfit.favourite else 'false' }}">
+  {% if outfit.favourite %}★ Favourite{% else %}☆ Favourite{% endif %}
+</button>

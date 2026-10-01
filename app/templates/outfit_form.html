@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if outfit else 'New' }} outfit · Outfit Planner{% endblock %}
+{% block heading %}{% if is_new %}Tag this outfit{% elif outfit %}Edit outfit{% else %}New outfit{% endif %}{% endblock %}
+{% block content %}
+{% if outfit and outfit.photos %}
+<div class="card" style="padding:8px">
+  <div style="display:flex; gap:8px; overflow-x:auto">
+    {% for p in outfit.photos %}
+    <div style="flex:0 0 auto; text-align:center">
+      <img src="{{ p.thumb_url }}" alt="" style="height:180px; width:auto; border-radius:10px; display:block">
+      {% if not is_new %}
+      <div style="display:flex; gap:4px; margin-top:4px; justify-content:center">
+        {% if not loop.first %}
+        <form method="post" action="/outfits/{{ outfit.id }}/photos/{{ p.id }}/cover"><button class="btn small" type="submit">Cover</button></form>
+        {% endif %}
+        <form method="post" action="/outfits/{{ outfit.id }}/photos/{{ p.id }}/delete" onsubmit="return confirm('Remove this photo?')"><button class="btn small danger" type="submit">Remove</button></form>
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  <form method="post" action="/outfits/{{ outfit.id }}/photos" enctype="multipart/form-data" style="margin-top:8px">
+    <label class="btn block" style="margin:0"><span>Add another photo</span>
+      <input type="file" name="photo" accept="image/*" style="position:absolute; opacity:0; width:1px; height:1px" data-autosubmit></label>
+  </form>
+</div>
+{% endif %}
+
+<form method="post" action="{{ action }}" enctype="multipart/form-data" class="card">
+  <input type="hidden" name="has_flags" value="1">
+  <input type="hidden" name="has_tags" value="1">
+  <input type="hidden" name="has_colours" value="1">
+
+  <h2>What kind of day is this for?</h2>
+  <div class="chips">
+    {% for t in all_tags %}
+    <label class="chip" title="{{ t.description or '' }}">
+      <input type="checkbox" name="tag_ids" value="{{ t.id }}" {% if outfit and t.id in outfit.tag_ids %}checked{% endif %}>
+      {{ t.name }}
+    </label>
+    {% endfor %}
+  </div>
+  <label for="new_tags" class="small muted" style="font-weight:500">Add a tag (comma separated)</label>
+  <input id="new_tags" name="new_tags" type="text" placeholder="e.g. school visit" autocapitalize="none">
+
+  <h2 style="margin-top:20px">Temperature</h2>
+  <div class="chips" data-temp-presets>
+    <button type="button" class="chip" data-min="" data-max="14">Cold, under 14°</button>
+    <button type="button" class="chip" data-min="12" data-max="20">Cool, 12 to 20°</button>
+    <button type="button" class="chip" data-min="18" data-max="26">Mild, 18 to 26°</button>
+    <button type="button" class="chip" data-min="24" data-max="">Hot, 24° and up</button>
+    <button type="button" class="chip" data-min="" data-max="">Any</button>
+  </div>
+  <div style="display:flex; gap:12px">
+    <div style="flex:1"><label for="temp_min">Min °C</label>
+      <input id="temp_min" name="temp_min" type="number" inputmode="numeric" step="1" min="-10" max="50" value="{{ outfit.temp_min|round|int if outfit and outfit.temp_min is not none else '' }}"></div>
+    <div style="flex:1"><label for="temp_max">Max °C</label>
+      <input id="temp_max" name="temp_max" type="number" inputmode="numeric" step="1" min="-10" max="50" value="{{ outfit.temp_max|round|int if outfit and outfit.temp_max is not none else '' }}"></div>
+  </div>
+
+  <h2 style="margin-top:20px">Weather</h2>
+  <div class="chips">
+    <label class="chip"><input type="checkbox" name="rain_ok" value="1" {% if outfit and outfit.rain_ok %}checked{% endif %}>Rain ok</label>
+    <label class="chip"><input type="checkbox" name="windy_ok" value="1" {% if outfit and outfit.windy_ok %}checked{% endif %}>Windy ok</label>
+    <label class="chip"><input type="checkbox" name="humid_ok" value="1" {% if outfit and outfit.humid_ok %}checked{% endif %}>Hot and humid ok</label>
+    <label class="chip"><input type="checkbox" name="layers_removable" value="1" {% if outfit and outfit.layers_removable %}checked{% endif %}>Layers removable</label>
+  </div>
+
+  <h2 style="margin-top:20px">Colours</h2>
+  {% if suggested %}<p class="small muted">Suggested from the photo. Tap to change.</p>{% endif %}
+  <div class="chips">
+    {% for s in palette %}
+    <label class="chip" style="padding-left:8px">
+      <input type="checkbox" name="colours" value="{{ s.key }}" {% if outfit and s.key in outfit.colours %}checked{% endif %}>
+      <span style="display:inline-block; width:22px; height:22px; border-radius:50%; background:{{ s.hex }}; border:1px solid rgba(0,0,0,.15)"></span>
+      {{ s.label }}
+    </label>
+    {% endfor %}
+  </div>
+  <div id="colour-hint" class="small muted" style="margin-top:8px"></div>
+
+  <h2 style="margin-top:20px">Details</h2>
+  <label for="name">Name <span class="muted small" style="font-weight:500">(optional, made up from tags if blank)</span></label>
+  <input id="name" name="name" type="text" value="{{ outfit.name or '' if outfit else '' }}" placeholder="{{ outfit.display_name if outfit else '' }}">
+  <label for="garments">Garments <span class="muted small" style="font-weight:500">(optional, comma separated)</span></label>
+  <input id="garments" name="garments" type="text" value="{{ outfit.garments|map(attribute='name')|join(', ') if outfit else '' }}" placeholder="navy chinos, white linen shirt">
+  <label for="notes">Notes</label>
+  <textarea id="notes" name="notes" rows="2">{{ outfit.notes or '' if outfit else '' }}</textarea>
+  <div class="chips" style="margin-top:12px">
+    <label class="chip"><input type="checkbox" name="favourite" value="1" {% if outfit and outfit.favourite %}checked{% endif %}>Favourite</label>
+  </div>
+
+  {% if not outfit %}
+  <label class="btn block" style="margin-top:16px"><span>Add a photo</span>
+    <input type="file" name="photo" accept="image/*" style="position:absolute; opacity:0; width:1px; height:1px" data-filename-label></label>
+  {% endif %}
+
+  <p style="margin-top:20px"><button class="primary block" type="submit">{{ 'Save outfit' if outfit else 'Create outfit' }}</button></p>
+  {% if outfit and not is_new %}<p style="text-align:center"><a href="/outfits/{{ outfit.id }}" class="muted small">Cancel</a></p>{% endif %}
+</form>
+{% endblock %}
+{% block scripts %}<script src="/static/app.js" defer></script>{% endblock %}

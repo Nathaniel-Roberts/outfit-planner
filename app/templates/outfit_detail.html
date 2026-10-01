@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{{ outfit.display_name }} · Outfit Planner{% endblock %}
+{% block heading %}{{ outfit.display_name }}{% endblock %}
+{% block content %}
+{% if outfit.archived %}<div class="flash">This outfit is archived.</div>{% endif %}
+{% if outfit.photos %}
+<div class="photo-strip">
+  {% for p in outfit.photos %}<img src="{{ p.web_url }}" alt="" loading="{{ 'eager' if loop.first else 'lazy' }}">{% endfor %}
+</div>
+{% else %}
+<div class="card"><p class="muted">No photo yet.</p>
+  <form method="post" action="/outfits/{{ outfit.id }}/photos" enctype="multipart/form-data">
+    <label class="btn primary block" style="margin:0"><span>Add a photo</span>
+      <input type="file" name="photo" accept="image/*" style="position:absolute; opacity:0; width:1px; height:1px" data-autosubmit></label>
+  </form>
+</div>
+{% endif %}
+
+<div class="card">
+  <form method="post" action="/wear/{{ outfit.id }}" style="margin-bottom:10px">
+    <button class="primary block" type="submit">Wearing this today</button>
+  </form>
+  <div style="display:flex; gap:8px">
+    {% include "partials/favourite_button.html" %}
+    <a class="btn" href="/outfits/{{ outfit.id }}/edit">Edit</a>
+  </div>
+</div>
+
+<div class="card">
+  {% if outfit.tags %}<p><strong>Days:</strong> {{ outfit.tag_names|join(', ') }}</p>{% endif %}
+  <p><strong>Temperature:</strong> {{ outfit.temp_label }}</p>
+  {% if outfit.weather_flags %}<p><strong>Weather:</strong> {{ outfit.weather_flags|join(', ') }}</p>{% endif %}
+  {% if outfit.colours %}
+  <p><strong>Colours:</strong>
+    {% for c in outfit.colours %}<span class="swatch-inline"><span style="background:{{ palette[c].hex if c in palette else '#ccc' }}"></span>{{ palette[c].label if c in palette else c }}</span>{% endfor %}
+  </p>
+  {% endif %}
+  {% if outfit.garments %}<p><strong>Garments:</strong> {{ outfit.garments|map(attribute='name')|join(', ') }}</p>{% endif %}
+  {% if outfit.notes %}<p><strong>Notes:</strong> {{ outfit.notes }}</p>{% endif %}
+  <p class="small muted">
+    {% if outfit.last_worn_on %}Last worn {{ outfit.last_worn_on|au_date }}.{% else %}Not worn yet.{% endif %}
+    Added {{ outfit.created_at|au_date }}.
+  </p>
+  {% if history %}<p class="small muted">Recent wears: {% for d in history %}{{ d|au_date }}{% if not loop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+</div>
+
+<div class="card" style="display:flex; gap:8px; flex-wrap:wrap">
+  <form method="post" action="/outfits/{{ outfit.id }}/archive"><button type="submit">{{ 'Unarchive' if outfit.archived else 'Archive' }}</button></form>
+  <form method="post" action="/outfits/{{ outfit.id }}/delete" onsubmit="return confirm('Delete this outfit and its photos? This cannot be undone.')"><button class="danger" type="submit">Delete</button></form>
+</div>
+{% endblock %}
+{% block scripts %}<script src="/static/app.js" defer></script>{% endblock %}

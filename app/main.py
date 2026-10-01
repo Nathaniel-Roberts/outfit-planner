@@ -25,6 +25,9 @@ from app.auth import (
     resolve_user,
 )
 from app.config import Settings, load_settings
+from app.routers import outfits as outfits_router
+from app.routers import settings as settings_router
+from app.routers import wear as wear_router
 from app.templating import build_templates, render
 from app.users import User
 
@@ -176,4 +179,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             request.app.state.templates, request, "placeholder.html", title="Today", nav="today"
         )
 
+    app.include_router(outfits_router.router)
+    app.include_router(settings_router.router)
+    app.include_router(wear_router.router)
     return app

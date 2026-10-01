@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Settings · Outfit Planner{% endblock %}
+{% block heading %}Settings{% endblock %}
+{% block content %}
+{% if user.is_admin and all_users|length > 1 %}
+<div class="card">
+  <h2>Viewing</h2>
+  <p class="small muted">As admin you can look at and edit another person's wardrobe.</p>
+  <form method="post" action="/settings/view-as" style="display:flex; gap:8px; align-items:flex-end">
+    <div style="flex:1">
+      <label for="user_id" style="margin-top:0">Wardrobe</label>
+      <select id="user_id" name="user_id">
+        {% for u in all_users %}<option value="{{ u.id }}" {% if u.id == viewer.id %}selected{% endif %}>{{ u.display_name }}{% if u.email %} ({{ u.email }}){% endif %}{% if u.id == user.id %} (you){% endif %}</option>{% endfor %}
+      </select>
+    </div>
+    <button type="submit">Switch</button>
+  </form>
+</div>
+{% endif %}
+
+<div class="card" id="tags">
+  <h2>Activity tags</h2>
+  <p class="small muted">Rename or remove tags. Deleting a tag removes it from outfits but keeps the outfits.</p>
+  {% for t in all_tags %}
+  <form method="post" action="/settings/tags/{{ t.id }}" style="display:flex; gap:6px; align-items:center; margin-bottom:8px; flex-wrap:wrap">
+    <input type="text" name="name" value="{{ t.name }}" aria-label="Tag name" style="flex:1 1 140px">
+    <input type="text" name="description" value="{{ t.description or '' }}" placeholder="Description" aria-label="Description" style="flex:2 1 180px">
+    <button type="submit" class="small">Save</button>
+    <button type="submit" class="small danger" formaction="/settings/tags/{{ t.id }}/delete" onclick="return confirm('Delete tag {{ t.name }}?')">Delete</button>
+  </form>
+  {% endfor %}
+  <form method="post" action="/settings/tags" style="display:flex; gap:6px; align-items:center; margin-top:12px; flex-wrap:wrap">
+    <input type="text" name="name" placeholder="New tag" required style="flex:1 1 140px">
+    <input type="text" name="description" placeholder="Description (optional)" style="flex:2 1 180px">
+    <button type="submit" class="primary small">Add</button>
+  </form>
+</div>
+
+{% block extra_settings %}{% endblock %}
+
+<div class="card">
+  <h2>Account</h2>
+  <p class="small muted">Signed in as {{ user.display_name }}{% if user.email %} ({{ user.email }}){% endif %}{% if user.is_admin %}, admin{% endif %}.</p>
+  <form method="post" action="/logout"><button type="submit">Sign out</button></form>
+</div>
+{% endblock %}
