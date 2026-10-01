@@ -1,0 +1,29 @@
+# Outfit Planner behind a Cloudflare Tunnel. See docs/deploy.md.
+#
+# The app container has no published ports on purpose: the only way in is the
+# tunnel, and Cloudflare Access sits in front of the tunnel. If you need LAN
+# access for testing, uncomment the ports block and keep it LAN-only.
+
+services:
+  app:
+    build: .
+    image: outfit-planner:latest
+    container_name: outfit-planner
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+    volumes:
+      - ./data:/data
+    # ports:
+    #   - "127.0.0.1:8000:8000"
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: outfit-planner-tunnel
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN}
+    depends_on:
+      - app

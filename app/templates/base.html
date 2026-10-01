@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#2f5d50">
+  <title>{% block title %}Outfit Planner{% endblock %}</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <link rel="manifest" href="/static/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Outfits">
+  <script src="/static/vendor/htmx.min.js" defer></script>
+</head>
+<body hx-boost="true">
+  {% block topbar %}
+  <header class="topbar">
+    <h1>{% block heading %}Outfit Planner{% endblock %}</h1>
+    {% if user %}<span class="small muted">{{ user.display_name }}</span>{% endif %}
+  </header>
+  {% endblock %}
+  <main class="wrap">
+    {% if flash %}<div class="flash {{ flash.kind }}">{{ flash.message }}</div>{% endif %}
+    {% block content %}{% endblock %}
+  </main>
+  {% if user %}
+  <nav class="tabbar">
+    <a href="/" class="{% if nav == 'today' %}active{% endif %}">Today</a>
+    <a href="/outfits" class="{% if nav == 'library' %}active{% endif %}">Library</a>
+    <a href="/outfits/new" class="{% if nav == 'new' %}active{% endif %}">Add</a>
+    <a href="/history" class="{% if nav == 'history' %}active{% endif %}">History</a>
+    <a href="/settings" class="{% if nav == 'settings' %}active{% endif %}">Settings</a>
+  </nav>
+  {% endif %}
+  {% block scripts %}{% endblock %}
+</body>
+</html>

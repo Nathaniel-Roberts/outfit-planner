@@ -1,0 +1,37 @@
+[project]
+name = "outfit-planner"
+version = "0.1.0"
+description = "Self-hosted outfit planner: decide once, photograph, filter by day and weather."
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.142",
+    "uvicorn[standard]>=0.54",
+    "jinja2>=3.1",
+    "python-multipart>=0.0.20",
+    "httpx>=0.28",
+    "pyjwt[crypto]>=2.15",
+    "pillow>=12",
+    "mcp>=2.2,<3",
+    "itsdangerous>=2.2",
+    "argon2-cffi>=25",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "ruff>=0.14",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Form", "fastapi.Query", "fastapi.File", "fastapi.Header", "fastapi.Path"]

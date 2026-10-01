@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Sign in · Outfit Planner{% endblock %}
+{% block heading %}Sign in{% endblock %}
+{% block content %}
+<div class="card">
+  {% if admin_enabled %}
+  <p class="muted">Admin sign in. Everyone else signs in through Cloudflare Access.</p>
+  <form method="post" action="/login">
+    <input type="hidden" name="next" value="{{ next_path }}">
+    <label for="username">Username</label>
+    <input id="username" name="username" type="text" autocomplete="username" required autofocus>
+    <label for="password">Password</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required>
+    <p style="margin-top:16px"><button class="primary block" type="submit">Sign in</button></p>
+  </form>
+  {% else %}
+  <p>No sign in is available here.</p>
+  <p class="muted">This app expects Cloudflare Access in front of it, and no admin account is configured. Set ADMIN_USERNAME and ADMIN_PASSWORD (or ADMIN_PASSWORD_HASH), or set DEV_MODE=true for local development.</p>
+  {% endif %}
+</div>
+{% endblock %}

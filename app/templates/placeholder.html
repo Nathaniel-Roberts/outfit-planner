@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block heading %}{{ title }}{% endblock %}
+{% block content %}
+<div class="card">
+  <p>{{ title }} is coming in a later phase.</p>
+  <p class="small muted">Signed in as {{ user.display_name }}{% if user.is_admin %} (admin){% endif %}.</p>
+  <form method="post" action="/logout"><button type="submit">Sign out</button></form>
+</div>
+{% endblock %}
