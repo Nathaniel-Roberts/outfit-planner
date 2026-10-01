@@ -20,19 +20,21 @@
 
 <div class="card" id="tags">
   <h2>Activity tags</h2>
-  <p class="small muted">Rename or remove tags. Deleting a tag removes it from outfits but keeps the outfits.</p>
+  <p class="small muted" style="margin-bottom:4px">Rename or remove tags. Deleting a tag removes it from outfits but keeps the outfits.</p>
   {% for t in all_tags %}
-  <form method="post" action="/settings/tags/{{ t.id }}" style="display:flex; gap:6px; align-items:center; margin-bottom:8px; flex-wrap:wrap">
-    <input type="text" name="name" value="{{ t.name }}" aria-label="Tag name" style="flex:1 1 140px">
-    <input type="text" name="description" value="{{ t.description or '' }}" placeholder="Description" aria-label="Description" style="flex:2 1 180px">
-    <button type="submit" class="small">Save</button>
-    <button type="submit" class="small danger" formaction="/settings/tags/{{ t.id }}/delete" onclick="return confirm('Delete tag {{ t.name }}?')">Delete</button>
+  <form method="post" action="/settings/tags/{{ t.id }}" class="tag-row">
+    <input type="text" name="name" value="{{ t.name }}" aria-label="Tag name">
+    <input type="text" name="description" value="{{ t.description or '' }}" placeholder="Description" aria-label="Description">
+    <div class="actions">
+      <button type="submit" class="small">Save</button>
+      <button type="submit" class="small danger" formaction="/settings/tags/{{ t.id }}/delete" onclick="return confirm('Delete tag {{ t.name }}?')">Delete</button>
+    </div>
   </form>
   {% endfor %}
-  <form method="post" action="/settings/tags" style="display:flex; gap:6px; align-items:center; margin-top:12px; flex-wrap:wrap">
-    <input type="text" name="name" placeholder="New tag" required style="flex:1 1 140px">
-    <input type="text" name="description" placeholder="Description (optional)" style="flex:2 1 180px">
-    <button type="submit" class="primary small">Add</button>
+  <form method="post" action="/settings/tags" class="tag-row new">
+    <input type="text" name="name" placeholder="New tag" required>
+    <input type="text" name="description" placeholder="Description (optional)">
+    <div class="actions"><button type="submit" class="primary small">Add</button></div>
   </form>
 </div>
 
@@ -41,15 +43,17 @@
   <p class="small muted">Your own likes and avoids. They nudge the ranking a little and show a hint when tagging.</p>
   {% for r in rules %}
   <div class="hist-item">
-    <span><span class="swatch-inline"><span style="background:{{ palette_hex(r.colour_a) }}"></span></span><span class="swatch-inline"><span style="background:{{ palette_hex(r.colour_b) }}"></span></span>{{ r.label }} <span class="muted small">{{ 'good' if r.verdict == 'good' else 'avoid' }}</span></span>
+    <span><span class="swatch-inline"><span style="background:{{ palette_hex(r.colour_a) }}"></span></span><span class="swatch-inline"><span style="background:{{ palette_hex(r.colour_b) }}"></span></span>{{ r.label }} <span class="muted small">{{ 'goes well' if r.verdict == 'good' else 'avoid' }}</span></span>
     <form method="post" action="/settings/colour-rules/{{ r.id }}/delete"><button class="btn small" type="submit" aria-label="Remove">×</button></form>
   </div>
   {% endfor %}
-  <form method="post" action="/settings/colour-rules" style="display:flex; gap:6px; align-items:center; margin-top:12px; flex-wrap:wrap">
-    <select name="colour_a" aria-label="First colour" style="flex:1 1 110px">{% for s in palette_list %}<option value="{{ s.key }}">{{ s.label }}</option>{% endfor %}</select>
-    <select name="colour_b" aria-label="Second colour" style="flex:1 1 110px">{% for s in palette_list %}<option value="{{ s.key }}" {% if loop.index == 2 %}selected{% endif %}>{{ s.label }}</option>{% endfor %}</select>
-    <select name="verdict" aria-label="Verdict" style="flex:1 1 90px"><option value="good">good</option><option value="avoid">avoid</option></select>
-    <button type="submit" class="primary small">Add</button>
+  <form method="post" action="/settings/colour-rules" class="rule-form">
+    <select name="colour_a" aria-label="First colour">{% for s in palette_list %}<option value="{{ s.key }}">{{ s.label }}</option>{% endfor %}</select>
+    <select name="colour_b" aria-label="Second colour">{% for s in palette_list %}<option value="{{ s.key }}" {% if loop.index == 2 %}selected{% endif %}>{{ s.label }}</option>{% endfor %}</select>
+    <div class="wide">
+      <select name="verdict" aria-label="Verdict"><option value="good">Goes well together</option><option value="avoid">Avoid together</option></select>
+      <button type="submit" class="primary">Add</button>
+    </div>
   </form>
 </div>
 

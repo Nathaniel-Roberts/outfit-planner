@@ -10,8 +10,8 @@
 {% else %}
 <div class="card"><p class="muted">No photo yet.</p>
   <form method="post" action="/outfits/{{ outfit.id }}/photos" enctype="multipart/form-data">
-    <label class="btn primary block" style="margin:0"><span>Add a photo</span>
-      <input type="file" name="photo" accept="image/*" style="position:absolute; opacity:0; width:1px; height:1px" data-autosubmit></label>
+    <label class="btn primary block file-btn"><span>Add a photo</span>
+      <input type="file" name="photo" accept="image/*" data-autosubmit></label>
   </form>
 </div>
 {% endif %}
@@ -33,7 +33,7 @@
   </details>
 </div>
 
-<div class="card">
+<div class="card kv">
   {% if outfit.tags %}<p><strong>Days:</strong> {{ outfit.tag_names|join(', ') }}</p>{% endif %}
   <p><strong>Temperature:</strong> {{ outfit.temp_label }}</p>
   {% if outfit.weather_flags %}<p><strong>Weather:</strong> {{ outfit.weather_flags|join(', ') }}</p>{% endif %}

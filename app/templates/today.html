@@ -4,23 +4,20 @@
 {% block content %}
 <div class="card weather">
   {% if forecast %}
-  <div style="display:flex; justify-content:space-between; align-items:baseline; gap:8px">
+  <div class="row">
     <div>
-      <div class="temps"><strong>{{ forecast.temp_max|degrees }}</strong> <span class="muted">/ {{ forecast.temp_min|degrees }}</span></div>
-      <div class="small muted">{{ forecast.label }}{% if forecast.label %} · {% endif %}{{ forecast.rain_chance }}% chance of rain · wind {{ forecast.wind_max|round|int }} km/h{% if forecast.humid %} · humid{% endif %}</div>
-      {% if forecast.stale %}<div class="small" style="color:var(--warn)">Forecast may be out of date (couldn't reach the weather service).</div>{% endif %}
+      <div class="temps">{{ forecast.temp_max|degrees }} <span class="lo">/ {{ forecast.temp_min|degrees }}</span></div>
+      <div class="desc small muted">{{ forecast.label }}{% if forecast.label %} · {% endif %}{{ forecast.rain_chance }}% chance of rain · wind {{ forecast.wind_max|round|int }} km/h{% if forecast.humid %} · humid{% endif %}</div>
+      {% if forecast.stale %}<div class="small" style="color:var(--warn); margin-top:4px">Forecast may be out of date (couldn't reach the weather service).</div>{% endif %}
     </div>
     <details class="override">
       <summary class="btn small">{{ 'Edit' if has_override else 'Override' }}</summary>
-      {% include "partials/weather_form.html" %}
     </details>
   </div>
+  <div class="override-form" id="override-form" hidden>{% include "partials/weather_form.html" %}</div>
   {% else %}
   <p><strong>No forecast available.</strong> <span class="muted small">Set today's weather by hand.</span></p>
-  <details class="override" open>
-    <summary class="btn small">Set weather</summary>
-    {% include "partials/weather_form.html" %}
-  </details>
+  <div class="override-form" id="override-form">{% include "partials/weather_form.html" %}</div>
   {% endif %}
 </div>
 
@@ -28,9 +25,9 @@
 <div class="card">
   <h2>Wearing today</h2>
   {% for entry, outfit in worn_today %}
-  <div style="display:flex; align-items:center; gap:10px; margin-top:6px">
-    {% if outfit and outfit.cover %}<img src="{{ outfit.cover.thumb_url }}" alt="" style="width:48px; height:64px; object-fit:cover; border-radius:8px">{% endif %}
-    <a href="/outfits/{{ entry.outfit_id }}" style="flex:1; font-weight:600">{{ outfit.display_name if outfit else 'Outfit ' ~ entry.outfit_id }}</a>
+  <div class="worn-now">
+    {% if outfit and outfit.cover %}<img src="{{ outfit.cover.thumb_url }}" alt="">{% endif %}
+    <a href="/outfits/{{ entry.outfit_id }}">{{ outfit.display_name if outfit else 'Outfit ' ~ entry.outfit_id }}</a>
     <form method="post" action="/wear/entry/{{ entry.id }}/delete"><input type="hidden" name="next" value="/"><button class="btn small" type="submit">Undo</button></form>
   </div>
   {% endfor %}

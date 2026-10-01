@@ -141,3 +141,24 @@ def test_manual_forecast_maps_flags():
     assert f.rainy and not f.windy and f.humid is False  # humid needs max >= 26
     assert f.manual and f.label == "Set by you"
     assert "15 to 25°" in f.summary
+
+
+def test_fit_tiers():
+    f = forecast(12, 20)
+    great = score_outfit(outfit(1, tags=[ACTIVE], temp=(12, 20)), {ACTIVE.id}, f, TODAY)
+    assert great.fit == "great" and great.fit_label == "Great match"
+    # Untagged outfit on a tagged day, temperature fits: still great (could be for any day).
+    assert score_outfit(outfit(2, temp=(12, 20)), {ACTIVE.id}, f, TODAY).fit == "great"
+    # A touch warm (2 degrees over) is good, not poor.
+    assert score_outfit(outfit(3, temp=(5, 15.5)), set(), f, TODAY).fit == "good"
+    # Way off temperature is poor.
+    assert score_outfit(outfit(4, temp=(25, 35)), set(), f, TODAY).fit == "poor"
+    # Tagged for a different day is poor.
+    assert score_outfit(outfit(5, tags=[DESK], temp=(12, 20)), {ACTIVE.id}, f, TODAY).fit == "poor"
+    # One weather miss is good, two are poor.
+    wet = forecast(12, 20, rain=80, wind=50)
+    assert score_outfit(outfit(6, temp=(12, 20), rain_ok=True), set(), wet, TODAY).fit == "good"
+    assert score_outfit(outfit(7, temp=(12, 20)), set(), wet, TODAY).fit == "poor"
+    # No forecast at all: great when nothing argues against it.
+    assert score_outfit(outfit(8), set(), None, TODAY).fit == "great"
+    assert score_outfit(outfit(9), set(), None, TODAY).to_dict()["fit"] == "great"

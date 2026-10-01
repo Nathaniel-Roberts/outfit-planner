@@ -3,10 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#2f5d50">
+  <meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#15171a" media="(prefers-color-scheme: dark)">
+  <meta name="color-scheme" content="light dark">
   <title>{% block title %}Outfit Planner{% endblock %}</title>
   <link rel="stylesheet" href="/static/app.css">
   <link rel="manifest" href="/static/manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Outfits">
@@ -16,7 +19,7 @@
   {% block topbar %}
   <header class="topbar">
     <h1>{% block heading %}Outfit Planner{% endblock %}</h1>
-    {% if user %}<span class="small muted">{{ user.display_name }}</span>{% endif %}
+    {% if user %}<span class="who">{{ user.display_name }}{% if user.is_admin and user.username %} · admin{% endif %}</span>{% endif %}
   </header>
   {% endblock %}
   <main class="wrap">
@@ -24,12 +27,22 @@
     {% block content %}{% endblock %}
   </main>
   {% if user %}
-  <nav class="tabbar">
-    <a href="/" class="{% if nav == 'today' %}active{% endif %}">Today</a>
-    <a href="/outfits" class="{% if nav == 'library' %}active{% endif %}">Library</a>
-    <a href="/outfits/new" class="{% if nav == 'new' %}active{% endif %}">Add</a>
-    <a href="/history" class="{% if nav == 'history' %}active{% endif %}">History</a>
-    <a href="/settings" class="{% if nav == 'settings' %}active{% endif %}">Settings</a>
+  <nav class="tabbar" aria-label="Main">
+    <a href="/" class="{% if nav == 'today' %}active{% endif %}" aria-current="{{ 'page' if nav == 'today' else 'false' }}">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      Today</a>
+    <a href="/outfits" class="{% if nav == 'library' %}active{% endif %}" aria-current="{{ 'page' if nav == 'library' else 'false' }}">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+      Library</a>
+    <a href="/outfits/new" class="add {% if nav == 'new' %}active{% endif %}" aria-current="{{ 'page' if nav == 'new' else 'false' }}">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-3l-2.5-3z"/><circle cx="12" cy="13" r="3.5"/></svg>
+      Add</a>
+    <a href="/history" class="{% if nav == 'history' %}active{% endif %}" aria-current="{{ 'page' if nav == 'history' else 'false' }}">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+      History</a>
+    <a href="/settings" class="{% if nav == 'settings' %}active{% endif %}" aria-current="{{ 'page' if nav == 'settings' else 'false' }}">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.5"/><circle cx="10" cy="17" r="2.5"/></svg>
+      Settings</a>
   </nav>
   {% endif %}
   {% block scripts %}{% endblock %}

@@ -4,9 +4,10 @@
 {% block content %}
 <form method="post" action="/outfits" enctype="multipart/form-data" id="photo-first" class="card" style="text-align:center">
   <input type="hidden" name="then" value="edit">
-  <label class="btn primary block" style="min-height:120px; font-size:1.2rem; margin:0">
+  <label class="btn primary block file-btn" style="min-height:132px; font-size:1.2rem; flex-direction:column; gap:10px">
+    <svg viewBox="0 0 24 24" width="32" height="32" aria-hidden="true" style="stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round"><path d="M14.5 4h-5L7 7H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-3l-2.5-3z"/><circle cx="12" cy="13" r="3.5"/></svg>
     <span>Take or choose a photo</span>
-    <input type="file" name="photo" accept="image/*" style="position:absolute; opacity:0; width:1px; height:1px" data-autosubmit>
+    <input type="file" name="photo" accept="image/*" data-autosubmit>
   </label>
   <p class="muted small" style="margin-top:12px">Stand in front of the mirror, snap, then tag it. Colours get suggested from the photo.</p>
   <p><button class="btn block" type="submit" formaction="/outfits/new?details=1" formmethod="get" formnovalidate>Add details without a photo</button></p>

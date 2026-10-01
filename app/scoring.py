@@ -40,20 +40,44 @@ W_COLOUR_GOOD = 4.0
 W_COLOUR_AVOID = -8.0
 
 
+FIT_LABELS = {"great": "Great match", "good": "Good option", "poor": "Not today"}
+
+
 @dataclass
 class Scored:
     outfit: Outfit
     score: float
     reasons: list[str] = field(default_factory=list)
+    tag_matched: bool | None = None  # None when no tags were selected
+    temp_miss: float | None = None  # degrees outside the range; None if unknown or fits
+    weather_bad: int = 0
 
     @property
     def why(self) -> str:
         return ", ".join(self.reasons)
 
+    @property
+    def fit(self) -> str:
+        """Three plain tiers for the UI: great, good, poor."""
+        if self.tag_matched is False:
+            return "poor"
+        if self.temp_miss is not None and self.temp_miss > 3:
+            return "poor"
+        if self.weather_bad >= 2:
+            return "poor"
+        if self.temp_miss is None and self.weather_bad == 0 and self.tag_matched is not False:
+            return "great"
+        return "good"
+
+    @property
+    def fit_label(self) -> str:
+        return FIT_LABELS[self.fit]
+
     def to_dict(self, base_url: str = "") -> dict:
         data = self.outfit.to_dict(base_url)
         data["score"] = round(self.score, 1)
         data["why"] = self.why
+        data["fit"] = self.fit
         return data
 
 
@@ -62,23 +86,26 @@ def feel_temperature(forecast: DayForecast) -> float:
     return 0.4 * forecast.temp_min + 0.6 * forecast.temp_max
 
 
-def _temp_score(outfit: Outfit, forecast: DayForecast | None) -> tuple[float, str | None]:
+def _temp_score(
+    outfit: Outfit, forecast: DayForecast | None
+) -> tuple[float, str | None, float | None]:
+    """Points, reason, and how many degrees the day misses the range by (None if it fits)."""
     if forecast is None:
-        return 0.0, None
+        return 0.0, None, None
     if outfit.temp_min is None and outfit.temp_max is None:
-        return W_TEMP_UNKNOWN, None
+        return W_TEMP_UNKNOWN, None, None
     t = feel_temperature(forecast)
     lo = outfit.temp_min if outfit.temp_min is not None else -99.0
     hi = outfit.temp_max if outfit.temp_max is not None else 99.0
     if lo <= t <= hi:
-        return W_TEMP_FIT, f"suits {outfit.temp_label}"
+        return W_TEMP_FIT, f"suits {outfit.temp_label}", None
     miss = (lo - t) if t < lo else (t - hi)
     penalty = max(TEMP_PENALTY_FLOOR, W_TEMP_FIT - TEMP_PENALTY_PER_DEGREE * miss)
     if miss <= 2:
         word = "a touch cool" if t < lo else "a touch warm"
     else:
         word = "too cold a day for it" if t < lo else "too warm a day for it"
-    return penalty, f"{word} ({outfit.temp_label})"
+    return penalty, f"{word} ({outfit.temp_label})", miss
 
 
 def score_outfit(
@@ -90,6 +117,8 @@ def score_outfit(
 ) -> Scored:
     score = 0.0
     reasons: list[str] = []
+    tag_matched: bool | None = None
+    weather_bad = 0
 
     # Activity tags.
     outfit_tags = outfit.tag_ids
@@ -99,15 +128,18 @@ def score_outfit(
             score += W_TAG_FULL * len(matched) / len(selected_tag_ids)
             names = [t.name for t in outfit.tags if t.id in matched]
             reasons.append("matches " + ", ".join(names))
+            tag_matched = True
         elif not outfit_tags:
             score += W_TAG_UNTAGGED_OUTFIT
+            tag_matched = None  # untagged outfits could be for any day
         else:
             reasons.append("tagged " + ", ".join(outfit.tag_names[:2]))
+            tag_matched = False
     else:
         score += W_TAG_NONE_SELECTED
 
     # Temperature.
-    temp_points, temp_reason = _temp_score(outfit, forecast)
+    temp_points, temp_reason, temp_miss = _temp_score(outfit, forecast)
     score += temp_points
     if temp_reason:
         reasons.append(temp_reason)
@@ -117,12 +149,15 @@ def score_outfit(
         if forecast.rainy:
             score += W_RAIN_OK if outfit.rain_ok else W_RAIN_BAD
             reasons.append("rain ok" if outfit.rain_ok else "not great in rain")
+            weather_bad += 0 if outfit.rain_ok else 1
         if forecast.windy:
             score += W_WIND_OK if outfit.windy_ok else W_WIND_BAD
             reasons.append("windy ok" if outfit.windy_ok else "not great in wind")
+            weather_bad += 0 if outfit.windy_ok else 1
         if forecast.humid:
             score += W_HUMID_OK if outfit.humid_ok else W_HUMID_BAD
             reasons.append("fine when humid" if outfit.humid_ok else "sticky when humid")
+            weather_bad += 0 if outfit.humid_ok else 1
         if outfit.layers_removable and (forecast.temp_max - forecast.temp_min) >= LAYERS_SPREAD:
             score += W_LAYERS
             reasons.append("layers for a cool start")
@@ -156,7 +191,14 @@ def score_outfit(
                 score += W_COLOUR_AVOID
                 reasons.append(f"{pair_label(pair)} is a pairing you avoid")
 
-    return Scored(outfit=outfit, score=score, reasons=reasons)
+    return Scored(
+        outfit=outfit,
+        score=score,
+        reasons=reasons,
+        tag_matched=tag_matched,
+        temp_miss=temp_miss,
+        weather_bad=weather_bad,
+    )
 
 
 def rank_outfits(

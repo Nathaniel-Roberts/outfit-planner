@@ -50,12 +50,12 @@
 <div class="card">
   <h2>Most worn</h2>
   {% if most %}
-  {% for outfit, n in most %}<div class="hist-item"><a href="/outfits/{{ outfit.id }}">{{ outfit.display_name }}</a><span class="muted small">{{ n }} time{{ '' if n == 1 else 's' }}</span></div>{% endfor %}
+  {% for outfit, n in most %}<div class="hist-item"><a href="/outfits/{{ outfit.id }}">{{ outfit.display_name }}</a><span class="muted small count">{{ n }} time{{ '' if n == 1 else 's' }}</span></div>{% endfor %}
   {% else %}<p class="muted">Nothing logged yet. Tap "Wear this" on the Today screen.</p>{% endif %}
 </div>
 <div class="card">
   <h2>Least worn</h2>
-  {% for outfit, n in least %}<div class="hist-item"><a href="/outfits/{{ outfit.id }}">{{ outfit.display_name }}</a><span class="muted small">{% if n %}{{ n }} time{{ '' if n == 1 else 's' }}{% else %}never{% endif %}</span></div>{% endfor %}
+  {% for outfit, n in least %}<div class="hist-item"><a href="/outfits/{{ outfit.id }}">{{ outfit.display_name }}</a><span class="muted small count">{% if n %}{{ n }} time{{ '' if n == 1 else 's' }}{% else %}never{% endif %}</span></div>{% endfor %}
   {% if not least %}<p class="muted">No outfits yet.</p>{% endif %}
 </div>
 {% endblock %}

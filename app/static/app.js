@@ -34,6 +34,16 @@
         btn.classList.add('on');
       });
     });
+    // Weather override: the summary button toggles the full-width form below the card row.
+    root.querySelectorAll('.override summary').forEach(function (sum) {
+      if (sum.dataset.bound) return;
+      sum.dataset.bound = '1';
+      sum.addEventListener('click', function (e) {
+        e.preventDefault();
+        var form = document.getElementById('override-form');
+        if (form) { form.hidden = !form.hidden; if (!form.hidden) form.querySelector('input').focus(); }
+      });
+    });
     // Colour pairing hint, if the page has one.
     var hint = root.querySelector('#colour-hint');
     if (hint && !hint.dataset.bound) {

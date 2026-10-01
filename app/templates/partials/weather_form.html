@@ -1,14 +1,14 @@
-<form method="post" action="/today/weather" class="override-form">
-  <div style="display:flex; gap:8px">
-    <div style="flex:1"><label for="ov_min">Min °C</label><input id="ov_min" name="temp_min" type="number" inputmode="numeric" step="1" required value="{{ forecast.temp_min|round|int if forecast else '' }}"></div>
-    <div style="flex:1"><label for="ov_max">Max °C</label><input id="ov_max" name="temp_max" type="number" inputmode="numeric" step="1" required value="{{ forecast.temp_max|round|int if forecast else '' }}"></div>
+<form method="post" action="/today/weather">
+  <div style="display:flex; gap:10px">
+    <div style="flex:1"><label for="ov_min" style="margin-top:0">Min °C</label><input id="ov_min" name="temp_min" type="number" inputmode="numeric" step="1" required value="{{ forecast.temp_min|round|int if forecast else '' }}"></div>
+    <div style="flex:1"><label for="ov_max" style="margin-top:0">Max °C</label><input id="ov_max" name="temp_max" type="number" inputmode="numeric" step="1" required value="{{ forecast.temp_max|round|int if forecast else '' }}"></div>
   </div>
-  <div class="chips" style="margin-top:10px">
+  <div class="chips" style="margin-top:12px">
     <label class="chip"><input type="checkbox" name="rainy" value="1" {% if forecast and forecast.rainy %}checked{% endif %}>Rain</label>
     <label class="chip"><input type="checkbox" name="windy" value="1" {% if forecast and forecast.windy %}checked{% endif %}>Windy</label>
     <label class="chip"><input type="checkbox" name="humid" value="1" {% if forecast and forecast.humid %}checked{% endif %}>Humid</label>
   </div>
-  <div style="display:flex; gap:8px; margin-top:10px">
+  <div style="display:flex; gap:8px; margin-top:12px">
     <button class="primary" type="submit">Use this</button>
     {% if has_override %}<button type="submit" formaction="/today/weather/clear">Back to forecast</button>{% endif %}
   </div>

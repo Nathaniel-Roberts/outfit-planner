@@ -20,8 +20,8 @@
     {% endfor %}
   </div>
   <form method="post" action="/outfits/{{ outfit.id }}/photos" enctype="multipart/form-data" style="margin-top:8px">
-    <label class="btn block" style="margin:0"><span>Add another photo</span>
-      <input type="file" name="photo" accept="image/*" style="position:absolute; opacity:0; width:1px; height:1px" data-autosubmit></label>
+    <label class="btn block file-btn"><span>Add another photo</span>
+      <input type="file" name="photo" accept="image/*" data-autosubmit></label>
   </form>
 </div>
 {% endif %}
@@ -40,7 +40,7 @@
     </label>
     {% endfor %}
   </div>
-  <label for="new_tags" class="small muted" style="font-weight:500">Add a tag (comma separated)</label>
+  <label for="new_tags"><span class="hint">Add a tag (comma separated)</span></label>
   <input id="new_tags" name="new_tags" type="text" placeholder="e.g. school visit" autocapitalize="none">
 
   <h2 style="margin-top:20px">Temperature</h2>
@@ -72,7 +72,7 @@
     {% for s in palette %}
     <label class="chip" style="padding-left:8px">
       <input type="checkbox" name="colours" value="{{ s.key }}" {% if outfit and s.key in outfit.colours %}checked{% endif %}>
-      <span style="display:inline-block; width:22px; height:22px; border-radius:50%; background:{{ s.hex }}; border:1px solid rgba(0,0,0,.15)"></span>
+      <span class="dot" style="background:{{ s.hex }}"></span>
       {{ s.label }}
     </label>
     {% endfor %}
@@ -80,9 +80,9 @@
   <div id="colour-hint" class="small muted" style="margin-top:8px"></div>
 
   <h2 style="margin-top:20px">Details</h2>
-  <label for="name">Name <span class="muted small" style="font-weight:500">(optional, made up from tags if blank)</span></label>
+  <label for="name">Name <span class="hint">(optional, made up from tags if blank)</span></label>
   <input id="name" name="name" type="text" value="{{ outfit.name or '' if outfit else '' }}" placeholder="{{ outfit.display_name if outfit else '' }}">
-  <label for="garments">Garments <span class="muted small" style="font-weight:500">(optional, comma separated)</span></label>
+  <label for="garments">Garments <span class="hint">(optional, comma separated)</span></label>
   <input id="garments" name="garments" type="text" value="{{ outfit.garments|map(attribute='name')|join(', ') if outfit else '' }}" placeholder="navy chinos, white linen shirt">
   <label for="notes">Notes</label>
   <textarea id="notes" name="notes" rows="2">{{ outfit.notes or '' if outfit else '' }}</textarea>
@@ -91,8 +91,8 @@
   </div>
 
   {% if not outfit %}
-  <label class="btn block" style="margin-top:16px"><span>Add a photo</span>
-    <input type="file" name="photo" accept="image/*" style="position:absolute; opacity:0; width:1px; height:1px" data-filename-label></label>
+  <label class="btn block file-btn" style="margin-top:16px"><span>Add a photo</span>
+    <input type="file" name="photo" accept="image/*" data-filename-label></label>
   {% endif %}
 
   <p style="margin-top:20px"><button class="primary block" type="submit">{{ 'Save outfit' if outfit else 'Create outfit' }}</button></p>

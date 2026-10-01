@@ -1,13 +1,10 @@
-{% if not ranked %}
-<div class="card"><p>No outfits yet.</p><p><a class="btn primary" href="/outfits/new">Add the first one</a></p></div>
-{% else %}
-<div class="ranked">
-  {% for s in ranked %}
+{% macro row(s) -%}
   <div class="ranked-row {% if s.outfit.id in worn_ids %}worn{% endif %}">
     <a href="/outfits/{{ s.outfit.id }}" class="thumb">
-      {% if s.outfit.cover %}<img src="{{ s.outfit.cover.thumb_url }}" alt="" loading="{{ 'eager' if loop.index <= 3 else 'lazy' }}">{% else %}<div class="no-photo">No photo</div>{% endif %}
+      {% if s.outfit.cover %}<img src="{{ s.outfit.cover.thumb_url }}" alt="">{% else %}<div class="no-photo">No photo</div>{% endif %}
     </a>
     <div class="body">
+      <span class="fit {{ s.fit }}">{{ s.fit_label }}</span>
       <a href="/outfits/{{ s.outfit.id }}" class="name">{{ s.outfit.display_name }}{% if s.outfit.favourite %} ★{% endif %}</a>
       <div class="swatches">{% for c in s.outfit.colours %}<span style="background:{{ palette[c].hex if c in palette else '#ccc' }}"></span>{% endfor %}</div>
       <div class="why small muted">{{ s.why }}</div>
@@ -17,6 +14,29 @@
       </form>
     </div>
   </div>
-  {% endfor %}
+{%- endmacro %}
+{% if not ranked %}
+<div class="card"><p>No outfits yet.</p><p><a class="btn primary" href="/outfits/new">Add the first one</a></p></div>
+{% else %}
+{% set best = ranked|selectattr('fit', 'ne', 'poor')|list %}
+{% set rest = ranked|selectattr('fit', 'eq', 'poor')|list %}
+<div class="section-title">
+  <h2>{{ 'Best for today' if best else 'Closest matches' }}</h2>
+  <span class="small muted">{{ best|length if best else rest|length }} of {{ ranked|length }}</span>
 </div>
+<div class="ranked">
+  {% if best %}{% for s in best %}{{ row(s) }}{% endfor %}
+  {% else %}{% for s in rest[:3] %}{{ row(s) }}{% endfor %}{% endif %}
+</div>
+{% if best and rest %}
+<details class="more" style="margin-top:14px">
+  <summary><span class="btn">Everything else ({{ rest|length }})</span></summary>
+  <div class="ranked">{% for s in rest %}{{ row(s) }}{% endfor %}</div>
+</details>
+{% elif not best and rest|length > 3 %}
+<details class="more" style="margin-top:14px">
+  <summary><span class="btn">Everything else ({{ rest|length - 3 }})</span></summary>
+  <div class="ranked">{% for s in rest[3:] %}{{ row(s) }}{% endfor %}</div>
+</details>
+{% endif %}
 {% endif %}
