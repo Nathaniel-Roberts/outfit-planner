@@ -26,6 +26,12 @@ Cloudflare Access. Never set it in production.
 
 Run the tests with `uv run pytest`.
 
+## Photos from an iPhone
+
+Uploads must be JPEG, PNG or WebP. iPhones normally convert HEIC photos to JPEG when
+uploading through the browser. If a photo is rejected, set Settings > Camera > Formats to
+"Most Compatible", or pick the photo from the library rather than the camera.
+
 ## Claude and the MCP server
 
 The app exposes an MCP server at `/mcp` so Claude (Claude Code, the desktop and mobile
