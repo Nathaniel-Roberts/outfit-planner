@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import sqlite3
 from collections.abc import AsyncIterator
@@ -11,6 +12,7 @@ from pathlib import Path
 from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
+from starlette.routing import Route
 
 from app import db, users
 from app.auth import (
@@ -24,6 +26,7 @@ from app.auth import (
     resolve_user,
 )
 from app.config import Settings, load_settings
+from app.mcp_server import build_mcp_server, mcp_asgi_app
 from app.routers import backup as backup_router
 from app.routers import history as history_router
 from app.routers import outfits as outfits_router
@@ -38,12 +41,19 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 
 def app_version() -> str:
-    try:
-        from importlib.metadata import version
+    """A short hash of the app shell, so the service worker cache rolls over on upgrade.
 
-        return version("outfit-planner")
-    except Exception:  # noqa: BLE001 - not installed as a package (e.g. tests)
-        return "dev"
+    The package is not installed as a distribution inside the image, so a version
+    number from metadata is not reliable. Hashing the files the worker precaches is.
+    """
+    digest = hashlib.sha1()
+    for name in ("app.css", "app.js", "sw.js", "vendor/htmx.min.js", "manifest.webmanifest"):
+        path = STATIC_DIR / name
+        if path.exists():
+            digest.update(path.read_bytes())
+    for path in sorted(STATIC_DIR.parent.glob("templates/**/*.html")):
+        digest.update(path.read_bytes())
+    return digest.hexdigest()[:12]
 
 
 def get_conn(request: Request) -> sqlite3.Connection:
@@ -78,7 +88,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "Cloudflare Access is not configured (CF_ACCESS_TEAM_DOMAIN / CF_ACCESS_AUD). "
                 "Only the admin login protects this app. Do not expose it."
             )
-        yield
+        async with app.state.mcp_server.session_manager.run():
+            yield
 
     app = FastAPI(title="Outfit Planner", lifespan=lifespan, docs_url=None, redoc_url=None)
     app.state.settings = settings
@@ -87,6 +98,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.access_verifier = AccessVerifier(settings)
     app.state.admin_credentials = AdminCredentials(settings)
     app.state.weather = WeatherService(settings.weather_lat, settings.weather_lon, settings.tz)
+    app.state.mcp_server = build_mcp_server(settings, app.state.access_verifier, app.state.weather)
+    mcp_endpoint = mcp_asgi_app(app.state.mcp_server, settings, app.state.access_verifier)
+    for mcp_path in ("/mcp", "/mcp/"):
+        app.router.routes.append(
+            Route(mcp_path, endpoint=mcp_endpoint, methods=["GET", "POST", "DELETE"], name="mcp")
+        )
 
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
@@ -94,7 +111,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def identify_user(request: Request, call_next):
         request.state.user = None
         request.state.conn = None
-        if request.url.path.startswith("/static") or request.url.path == "/healthz":
+        path = request.url.path
+        if path.startswith(("/static", "/mcp")) or path in ("/healthz", "/sw.js"):
             return await call_next(request)
         try:
             conn = get_conn(request)
@@ -114,9 +132,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def _redirect_to_login(request: Request, exc: RedirectToLogin):
         return redirect_to_login(exc.next_path)
 
+    shell_version = app_version()
+
     @app.get("/sw.js", include_in_schema=False)
     def service_worker() -> Response:
-        source = (STATIC_DIR / "sw.js").read_text().replace("__VERSION__", app_version())
+        source = (STATIC_DIR / "sw.js").read_text().replace("__VERSION__", shell_version)
         return Response(
             source,
             media_type="application/javascript",

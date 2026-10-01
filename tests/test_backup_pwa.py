@@ -119,6 +119,7 @@ def test_pwa_assets(client, rsa_key):
     assert r.status_code == 200
     assert "application/javascript" in r.headers["content-type"]
     assert "__VERSION__" not in r.text
+    assert re.search(r"const VERSION = '[0-9a-f]{12}'", r.text)
     assert r.headers["cache-control"] == "no-cache"
     r = client.get("/static/manifest.webmanifest")
     assert r.status_code == 200

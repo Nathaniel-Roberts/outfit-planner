@@ -33,9 +33,17 @@ Docker is not required for development. The image is built from `Dockerfile` on 
 - `app/users.py` user records and seed tags.
 - `app/db.py` connection and migration runner.
 - `app/templating.py` Jinja2 setup and Australian date filters.
-- `app/routers/` feature routers (outfits, today, library, history, settings, backup).
-- `app/templates/`, `app/static/` server-rendered UI.
-- `tests/` focused on scoring, Access JWT verification and MCP tool contracts.
+- `app/outfits.py`, `app/tags.py`, `app/wear.py`, `app/colour_rules.py` data access.
+- `app/scoring.py` the ranking used by both the Today screen and the MCP `suggest_outfits` tool.
+- `app/weather.py` Open-Meteo fetch with a one-hour SQLite cache and stale fallback.
+- `app/images.py` upload processing (EXIF stripped, original/web/thumb). `app/colours.py` palette and extraction.
+- `app/mcp_server.py` the MCP server (tools, photo resources, auth middleware) served at `/mcp`.
+- `app/backup.py` zip export/import, also a CLI: `python -m app.backup export|import`.
+- `app/routers/` feature routers: today, outfits, history, settings, wear, backup.
+- `app/templates/`, `app/static/` server-rendered UI. `static/sw.js` is the service worker.
+- `migrations/` numbered SQL files. Add a new file for schema changes; never edit an applied one.
+- `tests/` focused on scoring, Access JWT verification, images, backup and MCP tool contracts.
+- `docs/deploy.md` deployment: compose, Cloudflare Tunnel, Access, Claude connection, backups.
 
 ## Conventions
 
@@ -52,3 +60,28 @@ Docker is not required for development. The image is built from `Dockerfile` on 
 3. `DEV_MODE=true` signs in as a dev admin. Local development only.
 
 Never expose the app without Cloudflare Access (or equivalent) in front of it.
+
+## MCP server
+
+Streamable HTTP at `/mcp` (stateless, JSON responses), built with the official `mcp` 2.x
+SDK (`MCPServer`, formerly FastMCP). Auth order per request: `Authorization: Bearer
+$MCP_BEARER_TOKEN`, then a Cloudflare Access JWT (user token acts as that user, service
+token acts as `MCP_USER_EMAIL`), then `DEV_MODE`.
+
+Tools: `list_outfits`, `get_outfit`, `suggest_outfits` (same scoring as the UI, with
+optional weather override), `create_outfit`, `update_outfit`, `log_wear`, `get_forecast`,
+`list_tags`, `list_colour_rules`, `get_outfit_photo` (returns the image). Resource
+template `outfit://{outfit_id}/photo/{index}` (1-based) serves web-size JPEGs.
+
+Local use: run with `DEV_MODE=true`, then
+`claude mcp add --transport http outfits-dev http://127.0.0.1:8000/mcp`.
+
+## Testing notes
+
+- `tests/test_mcp.py` drives the real `/mcp` endpoint in-process with the SDK client over an
+  `httpx2.ASGITransport`. The session manager can only be started once per app instance, so
+  each MCP test builds its own app and runs everything inside one `anyio.run`.
+- UI checks were done with Playwright against nix-provided Chromium at phone width. The
+  service worker was verified offline by stopping the server, not with `setOffline`
+  (Playwright's offline mode does not apply to service worker fetches).
+- ruff from pip does not run on NixOS; use `nix run nixpkgs#ruff -- check .`.

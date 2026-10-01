@@ -6,6 +6,8 @@
 
 services:
   app:
+    # Either build from source (default) or pull the image built by GitHub Actions:
+    # comment out "build: ." and set image to ghcr.io/<you>/outfit-planner:latest.
     build: .
     image: outfit-planner:latest
     container_name: outfit-planner

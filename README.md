@@ -26,6 +26,17 @@ Cloudflare Access. Never set it in production.
 
 Run the tests with `uv run pytest`.
 
+## Claude and the MCP server
+
+The app exposes an MCP server at `/mcp` so Claude (Claude Code, the desktop and mobile
+apps) can list and rank outfits, log wears, read the forecast and look at photos. See
+`docs/deploy.md` section 5 for connecting a client, and `CLAUDE.md` for the tool list.
+
+## Backup
+
+Settings > Backup downloads one zip with the database and all photos. Restore is on the
+same page. There is also a CLI: `python -m app.backup export out.zip`.
+
 ## Security note
 
 The app has no login of its own for everyday users. It trusts Cloudflare Access to
