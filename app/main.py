@@ -24,6 +24,7 @@ from app.auth import (
     resolve_user,
 )
 from app.config import Settings, load_settings
+from app.routers import history as history_router
 from app.routers import outfits as outfits_router
 from app.routers import settings as settings_router
 from app.routers import today as today_router
@@ -176,6 +177,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(today_router.router)
     app.include_router(outfits_router.router)
+    app.include_router(history_router.router)
     app.include_router(settings_router.router)
     app.include_router(wear_router.router)
     return app

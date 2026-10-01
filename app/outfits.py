@@ -452,3 +452,61 @@ def delete_outfit(conn: sqlite3.Connection, photos_root: Path, outfit: Outfit) -
         dest.rmdir()
     except OSError:
         pass
+
+
+@dataclass
+class OutfitFilter:
+    tag_ids: list[int] = field(default_factory=list)
+    colours: list[str] = field(default_factory=list)
+    temperature: float | None = None
+    favourite: bool = False
+    archived: bool = False
+    query: str | None = None
+    worn_since: date | None = None
+
+    @property
+    def active(self) -> bool:
+        return bool(
+            self.tag_ids
+            or self.colours
+            or self.temperature is not None
+            or self.favourite
+            or self.query
+            or self.worn_since
+        )
+
+
+def filter_outfits(all_outfits: list[Outfit], f: OutfitFilter) -> list[Outfit]:
+    """Apply a library filter in Python. Libraries are small; this keeps SQL simple."""
+    out: list[Outfit] = []
+    wanted_tags = set(f.tag_ids)
+    wanted_colours = set(palette.clean_keys(f.colours))
+    q = (f.query or "").strip().lower()
+    for o in all_outfits:
+        if wanted_tags and not (o.tag_ids & wanted_tags):
+            continue
+        if wanted_colours and not (set(o.colours) & wanted_colours):
+            continue
+        if f.temperature is not None:
+            lo = o.temp_min if o.temp_min is not None else -99.0
+            hi = o.temp_max if o.temp_max is not None else 99.0
+            if not (lo <= f.temperature <= hi):
+                continue
+        if f.favourite and not o.favourite:
+            continue
+        if f.worn_since and (o.last_worn_on is None or o.last_worn_on < f.worn_since):
+            continue
+        if q:
+            haystack = " ".join(
+                [
+                    o.display_name,
+                    o.notes or "",
+                    " ".join(o.tag_names),
+                    " ".join(g.name for g in o.garments),
+                    " ".join(palette.label(c) for c in o.colours),
+                ]
+            ).lower()
+            if q not in haystack:
+                continue
+        out.append(o)
+    return out

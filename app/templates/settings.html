@@ -36,7 +36,22 @@
   </form>
 </div>
 
-{% block extra_settings %}{% endblock %}
+<div class="card" id="colours">
+  <h2>Colour pairings</h2>
+  <p class="small muted">Your own likes and avoids. They nudge the ranking a little and show a hint when tagging.</p>
+  {% for r in rules %}
+  <div class="hist-item">
+    <span><span class="swatch-inline"><span style="background:{{ palette_hex(r.colour_a) }}"></span></span><span class="swatch-inline"><span style="background:{{ palette_hex(r.colour_b) }}"></span></span>{{ r.label }} <span class="muted small">{{ 'good' if r.verdict == 'good' else 'avoid' }}</span></span>
+    <form method="post" action="/settings/colour-rules/{{ r.id }}/delete"><button class="btn small" type="submit" aria-label="Remove">×</button></form>
+  </div>
+  {% endfor %}
+  <form method="post" action="/settings/colour-rules" style="display:flex; gap:6px; align-items:center; margin-top:12px; flex-wrap:wrap">
+    <select name="colour_a" aria-label="First colour" style="flex:1 1 110px">{% for s in palette_list %}<option value="{{ s.key }}">{{ s.label }}</option>{% endfor %}</select>
+    <select name="colour_b" aria-label="Second colour" style="flex:1 1 110px">{% for s in palette_list %}<option value="{{ s.key }}" {% if loop.index == 2 %}selected{% endif %}>{{ s.label }}</option>{% endfor %}</select>
+    <select name="verdict" aria-label="Verdict" style="flex:1 1 90px"><option value="good">good</option><option value="avoid">avoid</option></select>
+    <button type="submit" class="primary small">Add</button>
+  </form>
+</div>
 
 <div class="card">
   <h2>Account</h2>

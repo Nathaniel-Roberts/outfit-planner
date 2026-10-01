@@ -38,12 +38,20 @@ def degrees(value: float | int | None) -> str:
     return f"{round(value):d}°"
 
 
+def palette_hex(key: str) -> str:
+    from app.colours import BY_KEY
+
+    swatch = BY_KEY.get(key)
+    return swatch.hex if swatch else "#cccccc"
+
+
 def build_templates(tz: str) -> Jinja2Templates:
     templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
     templates.env.filters["au_date"] = au_date
     templates.env.filters["au_day"] = au_day
     templates.env.filters["degrees"] = degrees
     templates.env.globals["tz"] = tz
+    templates.env.globals["palette_hex"] = palette_hex
     return templates
 
 

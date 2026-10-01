@@ -64,7 +64,7 @@ p { margin: 0 0 .75rem; }
 .btn.small { min-height: 36px; padding: 0 12px; font-size: .9rem; }
 
 label { display: block; font-weight: 600; margin: 12px 0 6px; }
-input[type=text], input[type=password], input[type=number], input[type=date], textarea, select {
+input[type=text], input[type=search], input[type=password], input[type=number], input[type=date], textarea, select {
   width: 100%;
   min-height: var(--tap);
   padding: 10px 12px;
@@ -152,3 +152,28 @@ button.on { background: var(--accent); color: var(--accent-ink); border-color: v
 .ranked-row .body { flex: 1; padding: 10px 12px 10px 0; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .ranked-row .name { font-weight: 600; text-decoration: none; color: inherit; }
 .ranked-row form { margin-top: auto; }
+
+/* Library filters */
+.filters summary { display: flex; justify-content: space-between; align-items: center; cursor: pointer; font-weight: 600; list-style: none; min-height: 32px; }
+.filters summary::-webkit-details-marker { display: none; }
+.swatch-chip { padding: 0 6px; min-width: 40px; justify-content: center; }
+.swatch-chip span { width: 26px; height: 26px; border-radius: 50%; border: 1px solid rgba(0,0,0,.15); display: inline-block; }
+.swatch-chip:has(input:checked) { background: var(--ink); border-color: var(--ink); }
+.swatch-chip:has(input:checked) span { outline: 2px solid #fff; }
+
+/* History */
+.cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-head { text-align: center; font-size: .75rem; color: var(--muted); font-weight: 600; padding: 4px 0; }
+.cal-day { position: relative; aspect-ratio: 3 / 4; border-radius: 8px; background: #efece6; overflow: hidden; }
+.cal-day.empty { background: transparent; }
+.cal-day .num { position: absolute; top: 3px; left: 5px; font-size: .7rem; font-weight: 600; z-index: 1; color: var(--ink); text-shadow: 0 0 3px #fff, 0 0 3px #fff; }
+.cal-day.today { outline: 2px solid var(--accent); }
+.cal-day img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cal-day a { display: block; width: 100%; height: 100%; }
+.cal-day .dot { position: absolute; left: 50%; top: 55%; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: var(--accent); }
+.cal-day .more { position: absolute; right: 3px; bottom: 3px; font-size: .65rem; background: var(--ink); color: #fff; border-radius: 6px; padding: 0 4px; }
+.hist-row { display: flex; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); }
+.hist-date { flex: 0 0 90px; font-weight: 600; font-size: .9rem; }
+.hist-items { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.hist-item { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 36px; }
+.hist-item a { text-decoration: none; color: inherit; font-weight: 600; }

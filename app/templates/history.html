@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}History · Outfit Planner{% endblock %}
+{% block heading %}History{% endblock %}
+{% block content %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px">
+    <a class="btn small" href="/history?month={{ prev_month }}" aria-label="Previous month">‹</a>
+    <h2 style="margin:0">{{ first.strftime('%B %Y') }}</h2>
+    {% if next_month %}<a class="btn small" href="/history?month={{ next_month }}" aria-label="Next month">›</a>{% else %}<span class="btn small" style="visibility:hidden">›</span>{% endif %}
+  </div>
+  <div class="cal">
+    {% for d in ['Mo','Tu','We','Th','Fr','Sa','Su'] %}<div class="cal-head">{{ d }}</div>{% endfor %}
+    {% for week in weeks %}{% for day in week %}
+      {% if day %}
+      <div class="cal-day {% if day == today %}today{% endif %} {% if day in by_day %}worn{% endif %}">
+        <span class="num">{{ day.day }}</span>
+        {% if day in by_day %}
+          {% set entries = by_day[day] %}
+          {% set outfit = entries[0][1] %}
+          <a href="/outfits/{{ outfit.id }}" title="{{ outfit.display_name }}">
+            {% if outfit.cover %}<img src="{{ outfit.cover.thumb_url }}" alt="{{ outfit.display_name }}" loading="lazy">{% else %}<span class="dot"></span>{% endif %}
+          </a>
+          {% if entries|length > 1 %}<span class="more">+{{ entries|length - 1 }}</span>{% endif %}
+        {% endif %}
+      </div>
+      {% else %}<div class="cal-day empty"></div>{% endif %}
+    {% endfor %}{% endfor %}
+  </div>
+</div>
+
+{% if by_day %}
+<div class="card">
+  <h2>This month</h2>
+  {% for day, entries in by_day|dictsort|reverse %}
+  <div class="hist-row">
+    <div class="hist-date">{{ day|au_day }}</div>
+    <div class="hist-items">
+      {% for entry, outfit in entries %}
+      <div class="hist-item">
+        <a href="/outfits/{{ outfit.id }}">{{ outfit.display_name }}</a>
+        <form method="post" action="/wear/entry/{{ entry.id }}/delete"><input type="hidden" name="next" value="/history?month={{ first.strftime('%Y-%m') }}"><button class="btn small" type="submit" aria-label="Remove">×</button></form>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Most worn</h2>
+  {% if most %}
+  {% for outfit, n in most %}<div class="hist-item"><a href="/outfits/{{ outfit.id }}">{{ outfit.display_name }}</a><span class="muted small">{{ n }} time{{ '' if n == 1 else 's' }}</span></div>{% endfor %}
+  {% else %}<p class="muted">Nothing logged yet. Tap "Wear this" on the Today screen.</p>{% endif %}
+</div>
+<div class="card">
+  <h2>Least worn</h2>
+  {% for outfit, n in least %}<div class="hist-item"><a href="/outfits/{{ outfit.id }}">{{ outfit.display_name }}</a><span class="muted small">{% if n %}{{ n }} time{{ '' if n == 1 else 's' }}{% else %}never{% endif %}</span></div>{% endfor %}
+  {% if not least %}<p class="muted">No outfits yet.</p>{% endif %}
+</div>
+{% endblock %}

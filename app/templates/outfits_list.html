@@ -2,12 +2,30 @@
 {% block title %}Library · Outfit Planner{% endblock %}
 {% block heading %}Library{% endblock %}
 {% block content %}
-<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
-  <span class="muted small">{{ outfits|length }} outfit{{ '' if outfits|length == 1 else 's' }}{% if viewer.id != user.id %} · viewing {{ viewer.display_name }}{% endif %}</span>
-  <a class="btn small" href="/outfits{% if not archived %}?archived=1{% endif %}">{{ 'Show active' if archived else 'Show archived' }}</a>
+<details class="card filters" {% if filter.active %}open{% endif %}>
+  <summary><span>{{ 'Filters on' if filter.active else 'Filter' }}</span><span class="muted small">{{ outfits|length }} outfit{{ '' if outfits|length == 1 else 's' }}{% if viewer.id != user.id %} · {{ viewer.display_name }}{% endif %}</span></summary>
+  <form method="get" action="/outfits" id="filter-form">
+    {% if archived %}<input type="hidden" name="archived" value="1">{% endif %}
+    <input type="search" name="q" value="{{ filter.query or '' }}" placeholder="Search names, notes, garments" aria-label="Search" style="margin-top:10px">
+    <div class="chips" style="margin-top:10px">
+      {% for t in all_tags %}<label class="chip"><input type="checkbox" name="tag" value="{{ t.id }}" {% if t.id in filter.tag_ids %}checked{% endif %}>{{ t.name }}</label>{% endfor %}
+    </div>
+    <div class="chips" style="margin-top:10px">
+      {% for s in palette_list %}<label class="chip swatch-chip" title="{{ s.label }}"><input type="checkbox" name="colour" value="{{ s.key }}" {% if s.key in filter.colours %}checked{% endif %}><span style="background:{{ s.hex }}"></span></label>{% endfor %}
+    </div>
+    <div style="display:flex; gap:8px; align-items:flex-end; margin-top:10px; flex-wrap:wrap">
+      <div style="flex:1 1 120px"><label for="temp" style="margin-top:0">Suits °C</label><input id="temp" name="temp" type="number" inputmode="numeric" step="1" value="{{ filter.temperature|round|int if filter.temperature is not none else '' }}" placeholder="e.g. 22"></div>
+      <label class="chip" style="min-height:48px"><input type="checkbox" name="favourite" value="1" {% if filter.favourite %}checked{% endif %}>★ Favourites</label>
+      <button class="primary" type="submit">Apply</button>
+      {% if filter.active %}<a class="btn" href="/outfits{% if archived %}?archived=1{% endif %}">Clear</a>{% endif %}
+    </div>
+  </form>
+</details>
+<div style="display:flex; justify-content:flex-end; margin-bottom:12px">
+  <a class="small muted" href="/outfits{% if not archived %}?archived=1{% endif %}">{{ 'Show active outfits' if archived else 'Show archived' }}</a>
 </div>
 {% if not outfits %}
-<div class="card"><p>{% if archived %}Nothing archived.{% else %}No outfits yet.{% endif %}</p>{% if not archived %}<p><a class="btn primary" href="/outfits/new">Add the first one</a></p>{% endif %}</div>
+<div class="card"><p>{% if archived %}Nothing archived.{% elif filter.active %}Nothing matches those filters.{% else %}No outfits yet.{% endif %}</p>{% if not archived and not filter.active %}<p><a class="btn primary" href="/outfits/new">Add the first one</a></p>{% endif %}</div>
 {% endif %}
 <div class="grid">
   {% for outfit in outfits %}{% include "partials/outfit_card.html" %}{% endfor %}

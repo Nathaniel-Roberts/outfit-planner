@@ -41,20 +41,43 @@ def _back(request: Request, default: str) -> RedirectResponse:
     return RedirectResponse(target, status_code=303)
 
 
-# --- Library (basic version; filters arrive in phase 4) --------------------------------
+# --- Library -------------------------------------------------------------------------
+
+
+def filter_from_query(request: Request) -> outfits.OutfitFilter:
+    qp = request.query_params
+    temp = qp.get("temp")
+    try:
+        temperature = float(temp) if temp not in (None, "") else None
+    except ValueError:
+        temperature = None
+    return outfits.OutfitFilter(
+        tag_ids=[int(t) for t in qp.getlist("tag") if t.isdigit()],
+        colours=qp.getlist("colour"),
+        temperature=temperature,
+        favourite=qp.get("favourite") == "1",
+        archived=qp.get("archived") == "1",
+        query=qp.get("q") or None,
+    )
 
 
 @router.get("/outfits", response_class=HTMLResponse)
-def library(request: Request, user: User = Depends(require_user), archived: int = 0):
+def library(request: Request, user: User = Depends(require_user)):
     conn = conn_of(request)
     viewer = viewing_user(request, conn, user)
-    items = outfits.list_outfits(conn, viewer.id, only_archived=bool(archived))
+    f = filter_from_query(request)
+    items = outfits.filter_outfits(
+        outfits.list_outfits(conn, viewer.id, only_archived=f.archived), f
+    )
     return render(
         request.app.state.templates,
         request,
         "outfits_list.html",
         outfits=items,
-        archived=bool(archived),
+        filter=f,
+        all_tags=tags.list_tags(conn, viewer.id),
+        palette_list=palette.PALETTE,
+        archived=f.archived,
         viewer=viewer,
         nav="library",
         palette=palette.BY_KEY,

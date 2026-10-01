@@ -24,6 +24,13 @@
     {% include "partials/favourite_button.html" %}
     <a class="btn" href="/outfits/{{ outfit.id }}/edit">Edit</a>
   </div>
+  <details style="margin-top:10px">
+    <summary class="small muted" style="cursor:pointer">Wore it on another day</summary>
+    <form method="post" action="/wear/{{ outfit.id }}" style="display:flex; gap:8px; align-items:flex-end; margin-top:6px">
+      <div style="flex:1"><label for="worn_on" style="margin-top:0">Date</label><input id="worn_on" name="worn_on" type="date" required></div>
+      <button type="submit">Log</button>
+    </form>
+  </details>
 </div>
 
 <div class="card">
