@@ -6,10 +6,10 @@
 
 services:
   app:
-    # Either build from source (default) or pull the image built by GitHub Actions:
-    # comment out "build: ." and set image to ghcr.io/<you>/outfit-planner:latest.
-    build: .
-    image: outfit-planner:latest
+    # Pulls the image GitHub Actions publishes on every release. Pin a version
+    # (e.g. :v0.1.0) if you prefer. To build from source instead, replace the
+    # image line with "build: .".
+    image: ghcr.io/nathaniel-roberts/outfit-planner:latest
     container_name: outfit-planner
     restart: unless-stopped
     env_file: .env

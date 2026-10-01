@@ -15,21 +15,23 @@ the only way in.
 Works with plain Docker, Docker Compose, Portainer and Dockge. The compose file is
 standard. There are two ways to get the image:
 
-- **Pull the prebuilt image** (recommended for Dockge on Home Assistant, where there is no
-  shell to clone into). Every push to `main` builds `ghcr.io/<you>/outfit-planner:latest`
-  for amd64 and arm64 via `.github/workflows/docker.yml`. In `docker-compose.yml`, replace
-  the `build: .` line with `image: ghcr.io/<you>/outfit-planner:latest` and skip cloning;
-  Dockge only needs the compose text and the `.env` values. If the GitHub package is
-  private, run `docker login ghcr.io` on the host with a token that has `read:packages`.
-- **Build from source** on the server, as below.
+- **Pull the prebuilt image** (the default in `docker-compose.yml`, and the right choice for
+  Dockge on Home Assistant, where there is no shell to clone into). Every push to `main`
+  and every `v*` tag builds `ghcr.io/nathaniel-roberts/outfit-planner` for amd64 and arm64
+  via `.github/workflows/docker.yml`; releases are listed at
+  https://github.com/Nathaniel-Roberts/outfit-planner/releases. Dockge only needs the
+  compose text and the `.env` values, nothing cloned. The package is public, so no
+  `docker login` is needed.
+- **Build from source** on the server: replace the `image:` line with `build: .` and clone
+  the repo as below.
 
-1. Create a folder for the stack, for example `/opt/stacks/outfit-planner`, and copy
-   these files into it from the repo: `docker-compose.yml`, `Dockerfile`, `pyproject.toml`,
-   `uv.lock`, `app/`, `migrations/`, and `.env.example`. The simplest way is to clone the
-   whole repo there:
+1. Create a folder for the stack, for example `/opt/stacks/outfit-planner`. With the
+   prebuilt image you only need `docker-compose.yml` and a `.env` there (in Dockge, paste
+   the compose text and the env values into the stack). If building from source, clone
+   the whole repo there instead:
 
    ```sh
-   git clone https://github.com/<you>/outfit-planner.git /opt/stacks/outfit-planner
+   git clone https://github.com/Nathaniel-Roberts/outfit-planner.git /opt/stacks/outfit-planner
    cd /opt/stacks/outfit-planner
    cp .env.example .env
    ```
