@@ -136,7 +136,34 @@ def test_admin_login_and_logout(client):
     r = client.post("/logout", follow_redirects=False)
     assert r.status_code == 303
     r = client.get("/", headers={"accept": "text/html"}, follow_redirects=False)
-    assert r.status_code == 303
+    assert r.status_code == 303  # anonymous again: off to /login
+
+
+def test_access_user_can_switch_to_admin(client, rsa_key):
+    from tests.test_outfits import lauren_headers
+
+    h = lauren_headers(rsa_key)
+    # Behind Access the login form must stay reachable for a signed-in non-admin.
+    r = client.get("/login", headers=h, follow_redirects=False)
+    assert r.status_code == 200
+    assert "switch to the admin account" in r.text
+    r = client.post(
+        "/login",
+        data={"username": "nathaniel", "password": "correct horse", "next": "/settings"},
+        headers=h,
+        follow_redirects=False,
+    )
+    assert r.status_code == 303 and r.headers["location"] == "/settings"
+    # The admin cookie wins over the Access identity on later requests.
+    r = client.get("/settings", headers=h)
+    assert "admin" in r.text and "Leave admin" in r.text
+    # An admin visiting /login is bounced home.
+    assert client.get("/login", headers=h, follow_redirects=False).status_code == 303
+    # Leaving admin returns to the Access identity, not an anonymous state.
+    r = client.post("/logout", headers=h, follow_redirects=False)
+    assert r.headers["location"] == "/"
+    r = client.get("/settings", headers=h)
+    assert "Lauren" in r.text and "Switch to admin" in r.text
 
 
 def test_admin_login_wrong_password(client):

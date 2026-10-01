@@ -166,7 +166,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/login")
     def login_form(request: Request, next: str = "/"):
-        if request.state.user is not None:
+        # Behind Access everyone arrives already identified, so the form stays
+        # reachable for switching to the admin account. Only an admin is bounced.
+        current = request.state.user
+        if current is not None and current.is_admin:
             return RedirectResponse(next if next.startswith("/") else "/", status_code=303)
         return render(
             request.app.state.templates,
@@ -214,7 +217,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.post("/logout")
     def logout() -> Response:
-        response = RedirectResponse("/login", status_code=303)
+        # Clearing the admin cookie drops back to the Access identity, if any.
+        response = RedirectResponse("/", status_code=303)
         response.delete_cookie(SESSION_COOKIE)
         return response
 

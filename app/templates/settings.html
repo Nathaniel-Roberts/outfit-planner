@@ -77,6 +77,10 @@
 <div class="card">
   <h2>Account</h2>
   <p class="small muted">Signed in as {{ user.display_name }}{% if user.email %} ({{ user.email }}){% endif %}{% if user.is_admin %}, admin{% endif %}.</p>
-  <form method="post" action="/logout"><button type="submit">Sign out</button></form>
+  {% if user.is_admin and user.username %}
+  <form method="post" action="/logout"><button type="submit">Leave admin</button></form>
+  {% elif settings.admin_login_enabled %}
+  <a class="btn" href="/login?next=/settings">Switch to admin</a>
+  {% endif %}
 </div>
 {% endblock %}
