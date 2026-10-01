@@ -24,6 +24,7 @@ from app.auth import (
     resolve_user,
 )
 from app.config import Settings, load_settings
+from app.routers import backup as backup_router
 from app.routers import history as history_router
 from app.routers import outfits as outfits_router
 from app.routers import settings as settings_router
@@ -34,6 +35,15 @@ from app.weather import WeatherService
 
 log = logging.getLogger("outfit_planner")
 STATIC_DIR = Path(__file__).resolve().parent / "static"
+
+
+def app_version() -> str:
+    try:
+        from importlib.metadata import version
+
+        return version("outfit-planner")
+    except Exception:  # noqa: BLE001 - not installed as a package (e.g. tests)
+        return "dev"
 
 
 def get_conn(request: Request) -> sqlite3.Connection:
@@ -103,6 +113,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.exception_handler(RedirectToLogin)
     async def _redirect_to_login(request: Request, exc: RedirectToLogin):
         return redirect_to_login(exc.next_path)
+
+    @app.get("/sw.js", include_in_schema=False)
+    def service_worker() -> Response:
+        source = (STATIC_DIR / "sw.js").read_text().replace("__VERSION__", app_version())
+        return Response(
+            source,
+            media_type="application/javascript",
+            headers={"Cache-Control": "no-cache", "Service-Worker-Allowed": "/"},
+        )
+
+    @app.get("/offline", include_in_schema=False)
+    def offline(request: Request):
+        return render(request.app.state.templates, request, "offline.html")
 
     @app.get("/healthz")
     def healthz() -> JSONResponse:
@@ -178,6 +201,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(today_router.router)
     app.include_router(outfits_router.router)
     app.include_router(history_router.router)
+    app.include_router(backup_router.router)
     app.include_router(settings_router.router)
     app.include_router(wear_router.router)
     return app

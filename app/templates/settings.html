@@ -53,6 +53,27 @@
   </form>
 </div>
 
+{% if user.is_admin %}
+<div class="card" id="backup">
+  <h2>Backup</h2>
+  {% if request.query_params.get('restored') is not none %}<div class="flash">Restore complete. {{ request.query_params.get('restored') }} photo files restored.</div>{% endif %}
+  {% if request.query_params.get('restore') == 'unconfirmed' %}<div class="flash error">Type REPLACE in the box to confirm a restore.</div>{% endif %}
+  <p class="small muted">The export is one zip with the database and every photo. Keep a copy somewhere else.</p>
+  <p><a class="btn" href="/backup/export">Download backup</a></p>
+  <details style="margin-top:8px">
+    <summary class="small muted" style="cursor:pointer">Restore from a backup (replaces everything)</summary>
+    <form method="post" action="/backup/import" enctype="multipart/form-data" style="margin-top:8px">
+      <label for="archive">Backup zip</label>
+      <input id="archive" name="archive" type="file" accept=".zip,application/zip" required>
+      <label for="confirm">Type REPLACE to confirm</label>
+      <input id="confirm" name="confirm" type="text" autocomplete="off" required>
+      <p style="margin-top:12px"><button class="danger" type="submit">Restore</button></p>
+      <p class="small muted">The current data is moved to a dated folder inside the data directory, not deleted.</p>
+    </form>
+  </details>
+</div>
+{% endif %}
+
 <div class="card">
   <h2>Account</h2>
   <p class="small muted">Signed in as {{ user.display_name }}{% if user.email %} ({{ user.email }}){% endif %}{% if user.is_admin %}, admin{% endif %}.</p>
