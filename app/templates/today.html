@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Today · Outfit Planner{% endblock %}
+{% block heading %}{{ today|au_day }}{% endblock %}
+{% block content %}
+<div class="card weather">
+  {% if forecast %}
+  <div style="display:flex; justify-content:space-between; align-items:baseline; gap:8px">
+    <div>
+      <div class="temps"><strong>{{ forecast.temp_max|degrees }}</strong> <span class="muted">/ {{ forecast.temp_min|degrees }}</span></div>
+      <div class="small muted">{{ forecast.label }}{% if forecast.label %} · {% endif %}{{ forecast.rain_chance }}% chance of rain · wind {{ forecast.wind_max|round|int }} km/h{% if forecast.humid %} · humid{% endif %}</div>
+      {% if forecast.stale %}<div class="small" style="color:var(--warn)">Forecast may be out of date (couldn't reach the weather service).</div>{% endif %}
+    </div>
+    <details class="override">
+      <summary class="btn small">{{ 'Edit' if has_override else 'Override' }}</summary>
+      {% include "partials/weather_form.html" %}
+    </details>
+  </div>
+  {% else %}
+  <p><strong>No forecast available.</strong> <span class="muted small">Set today's weather by hand.</span></p>
+  <details class="override" open>
+    <summary class="btn small">Set weather</summary>
+    {% include "partials/weather_form.html" %}
+  </details>
+  {% endif %}
+</div>
+
+{% if worn_today %}
+<div class="card">
+  <h2>Wearing today</h2>
+  {% for entry, outfit in worn_today %}
+  <div style="display:flex; align-items:center; gap:10px; margin-top:6px">
+    {% if outfit and outfit.cover %}<img src="{{ outfit.cover.thumb_url }}" alt="" style="width:48px; height:64px; object-fit:cover; border-radius:8px">{% endif %}
+    <a href="/outfits/{{ entry.outfit_id }}" style="flex:1; font-weight:600">{{ outfit.display_name if outfit else 'Outfit ' ~ entry.outfit_id }}</a>
+    <form method="post" action="/wear/entry/{{ entry.id }}/delete"><input type="hidden" name="next" value="/"><button class="btn small" type="submit">Undo</button></form>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<form id="tag-form" hx-get="/today/results" hx-trigger="change" hx-target="#results" hx-swap="innerHTML" hx-push-url="false" class="card">
+  <input type="hidden" name="tags_set" value="1">
+  <h2>What's on today?</h2>
+  <div class="chips">
+    {% for t in all_tags %}
+    <label class="chip"><input type="checkbox" name="tags" value="{{ t.id }}" {% if t.id in selected %}checked{% endif %}>{{ t.name }}</label>
+    {% endfor %}
+  </div>
+  <noscript><button type="submit" formaction="/" formmethod="get" style="margin-top:8px">Update</button></noscript>
+</form>
+
+<div id="results">
+  {% include "partials/today_results.html" %}
+</div>
+{% endblock %}
+{% block scripts %}<script src="/static/app.js" defer></script>{% endblock %}

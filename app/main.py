@@ -8,7 +8,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, Form, HTTPException, Request
+from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
@@ -21,15 +21,15 @@ from app.auth import (
     RedirectToLogin,
     SessionCodec,
     redirect_to_login,
-    require_user,
     resolve_user,
 )
 from app.config import Settings, load_settings
 from app.routers import outfits as outfits_router
 from app.routers import settings as settings_router
+from app.routers import today as today_router
 from app.routers import wear as wear_router
 from app.templating import build_templates, render
-from app.users import User
+from app.weather import WeatherService
 
 log = logging.getLogger("outfit_planner")
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -75,6 +75,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.sessions = SessionCodec(settings.session_secret)
     app.state.access_verifier = AccessVerifier(settings)
     app.state.admin_credentials = AdminCredentials(settings)
+    app.state.weather = WeatherService(settings.weather_lat, settings.weather_lon, settings.tz)
 
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
@@ -173,12 +174,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         response.delete_cookie(SESSION_COOKIE)
         return response
 
-    @app.get("/")
-    def today(request: Request, user: User = Depends(require_user)):
-        return render(
-            request.app.state.templates, request, "placeholder.html", title="Today", nav="today"
-        )
-
+    app.include_router(today_router.router)
     app.include_router(outfits_router.router)
     app.include_router(settings_router.router)
     app.include_router(wear_router.router)

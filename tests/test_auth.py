@@ -130,7 +130,7 @@ def test_admin_login_and_logout(client):
     )
     assert r.status_code == 303
     assert "op_session" in r.cookies
-    r = client.get("/", headers={"accept": "text/html"})
+    r = client.get("/settings", headers={"accept": "text/html"})
     assert r.status_code == 200
     assert "admin" in r.text
     r = client.post("/logout", follow_redirects=False)
@@ -146,7 +146,7 @@ def test_admin_login_wrong_password(client):
 
 
 def test_dev_mode_signs_in_without_access(dev_client):
-    r = dev_client.get("/", headers={"accept": "text/html"})
+    r = dev_client.get("/settings", headers={"accept": "text/html"})
     assert r.status_code == 200
     assert "admin" in r.text
 

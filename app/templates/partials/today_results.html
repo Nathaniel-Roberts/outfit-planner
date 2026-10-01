@@ -1,0 +1,22 @@
+{% if not ranked %}
+<div class="card"><p>No outfits yet.</p><p><a class="btn primary" href="/outfits/new">Add the first one</a></p></div>
+{% else %}
+<div class="ranked">
+  {% for s in ranked %}
+  <div class="ranked-row {% if s.outfit.id in worn_ids %}worn{% endif %}">
+    <a href="/outfits/{{ s.outfit.id }}" class="thumb">
+      {% if s.outfit.cover %}<img src="{{ s.outfit.cover.thumb_url }}" alt="" loading="{{ 'eager' if loop.index <= 3 else 'lazy' }}">{% else %}<div class="no-photo">No photo</div>{% endif %}
+    </a>
+    <div class="body">
+      <a href="/outfits/{{ s.outfit.id }}" class="name">{{ s.outfit.display_name }}{% if s.outfit.favourite %} ★{% endif %}</a>
+      <div class="swatches">{% for c in s.outfit.colours %}<span style="background:{{ palette[c].hex if c in palette else '#ccc' }}"></span>{% endfor %}</div>
+      <div class="why small muted">{{ s.why }}</div>
+      <form method="post" action="/wear/{{ s.outfit.id }}" hx-post="/wear/{{ s.outfit.id }}" hx-swap="none">
+        <input type="hidden" name="next" value="/">
+        <button class="btn small {% if s.outfit.id in worn_ids %}on{% endif %}" type="submit">{{ 'Wearing this' if s.outfit.id in worn_ids else 'Wear this' }}</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
